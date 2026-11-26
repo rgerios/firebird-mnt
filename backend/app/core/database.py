@@ -175,6 +175,23 @@ def init_db() -> None:
             """
         )
 
+        # Table Snapshots table for tracking exact record counts and computing real daily deltas
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS table_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                host_id INTEGER NOT NULL,
+                table_name TEXT NOT NULL,
+                record_count INTEGER NOT NULL,
+                source TEXT NOT NULL DEFAULT 'mon_tables',
+                sampled_at TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tbl_snapshots ON table_snapshots(host_id, table_name, sampled_at)"
+        )
+
         # Seed default Admin User if empty
         cursor.execute("SELECT COUNT(*) as count FROM users")
         u_row = cursor.fetchone()

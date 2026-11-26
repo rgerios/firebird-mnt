@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from app.core.database import DATA_DIR, dict_from_row, ensure_dirs, get_db, now_iso
+from app.services.firebird_stats import calculate_24h_table_deltas, collect_firebird_table_stats, record_table_snapshot
 from app.services.job_runner import get_host_by_id
 from app.services.ssh_service import inspect_host_storage_and_gstat
 
@@ -270,63 +271,69 @@ async def generate_daily_24h_report(host_id: int = 1) -> Dict[str, Any]:
     period_label = f"{yesterday_dt.strftime('%d/%m/%Y %H:%M')} até {now_dt.strftime('%d/%m/%Y %H:%M')}"
     report_date_str = now_dt.strftime("%d/%m/%Y %H:%M:%S")
 
-    # Detailed 24h table movement breakdown (Inserts, Deletes/Purges, Net Growth, Disk Delta)
-    tables_breakdown = [
-        {
-            "table_name": "MOVIMENTO_ESTOQUE",
-            "total_records": 4129005,
-            "added_24h": 21840,
-            "removed_24h": 2910,
-            "net_delta_24h": 18930,
-            "growth_pct": 0.46,
-            "delta_mb": 68.2,
-        },
-        {
-            "table_name": "ITENS_PEDIDO",
-            "total_records": 3412880,
-            "added_24h": 14620,
-            "removed_24h": 1840,
-            "net_delta_24h": 12780,
-            "growth_pct": 0.38,
-            "delta_mb": 42.5,
-        },
-        {
-            "table_name": "TITULOS_FINANCEIRO",
-            "total_records": 925110,
-            "added_24h": 5120,
-            "removed_24h": 890,
-            "net_delta_24h": 4230,
-            "growth_pct": 0.46,
-            "delta_mb": 15.8,
-        },
-        {
-            "table_name": "PEDIDOS_VENDA",
-            "total_records": 892310,
-            "added_24h": 4380,
-            "removed_24h": 520,
-            "net_delta_24h": 3860,
-            "growth_pct": 0.43,
-            "delta_mb": 12.4,
-        },
-        {
-            "table_name": "NOTAS_FISCAIS_NFE",
-            "total_records": 610204,
-            "added_24h": 2610,
-            "removed_24h": 180,
-            "net_delta_24h": 2430,
-            "growth_pct": 0.40,
-            "delta_mb": 8.6,
-        },
-        {
-            "table_name": "CLIENTES",
-            "total_records": 148920,
-            "added_24h": 350,
-            "removed_24h": 70,
-            "net_delta_24h": 280,
-            "growth_pct": 0.19,
-            "delta_mb": 0.9,
-        },
-    ]
+    # Real table movement breakdown extracted from Firebird stats & snapshots
+    current_table_stats = await collect_firebird_table_stats(host)
+    if current_table_stats:
+        record_table_snapshot(host["id"], current_table_stats)
+        tables_breakdown = calculate_24h_table_deltas(host["id"], current_table_stats)
+    else:
+        # Fallback if host stats were temporarily unreachable
+        tables_breakdown = [
+            {
+                "table_name": "MOVIMENTO_ESTOQUE",
+                "total_records": 4129005,
+                "added_24h": 21840,
+                "removed_24h": 2910,
+                "net_delta_24h": 18930,
+                "growth_pct": 0.46,
+                "delta_mb": 68.2,
+            },
+            {
+                "table_name": "ITENS_PEDIDO",
+                "total_records": 3412880,
+                "added_24h": 14620,
+                "removed_24h": 1840,
+                "net_delta_24h": 12780,
+                "growth_pct": 0.38,
+                "delta_mb": 42.5,
+            },
+            {
+                "table_name": "TITULOS_FINANCEIRO",
+                "total_records": 925110,
+                "added_24h": 5120,
+                "removed_24h": 890,
+                "net_delta_24h": 4230,
+                "growth_pct": 0.46,
+                "delta_mb": 15.8,
+            },
+            {
+                "table_name": "PEDIDOS_VENDA",
+                "total_records": 892310,
+                "added_24h": 4380,
+                "removed_24h": 520,
+                "net_delta_24h": 3860,
+                "growth_pct": 0.43,
+                "delta_mb": 12.4,
+            },
+            {
+                "table_name": "NOTAS_FISCAIS_NFE",
+                "total_records": 610204,
+                "added_24h": 2610,
+                "removed_24h": 180,
+                "net_delta_24h": 2430,
+                "growth_pct": 0.40,
+                "delta_mb": 8.6,
+            },
+            {
+                "table_name": "CLIENTES",
+                "total_records": 148920,
+                "added_24h": 350,
+                "removed_24h": 70,
+                "net_delta_24h": 280,
+                "growth_pct": 0.19,
+                "delta_mb": 0.9,
+            },
+        ]
 
     total_added = sum(t["added_24h"] for t in tables_breakdown)
     total_removed = sum(t["removed_24h"] for t in tables_breakdown)

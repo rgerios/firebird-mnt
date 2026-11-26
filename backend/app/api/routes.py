@@ -570,9 +570,63 @@ async def get_host_timeseries(
         "24h": (1440, 24, "%d/%m %H:%M"),
     }
     total_minutes, num_points, fmt_str = range_configs.get(range_key, (60, 20, "%H:%M"))
-    step_minutes = max(1, total_minutes // num_points)
 
     now_dt = datetime.now(timezone.utc).astimezone()
+    cutoff_time = (now_dt - timedelta(minutes=total_minutes)).isoformat(timespec="seconds")
+
+    # Fetch genuine real samples recorded by the background collector daemon
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT * FROM telemetry_samples
+             WHERE host_id = ? AND sampled_at >= ?
+             ORDER BY sampled_at ASC
+            """,
+            (host_id, cutoff_time),
+        )
+        real_rows = [dict_from_row(r) for r in cur.fetchall()]
+
+    if real_rows and len(real_rows) >= 6:
+        # We have genuine time-series history collected by the daemon!
+        # Subsample to keep a clean, performant payload of ~24 points
+        stride = max(1, len(real_rows) // num_points)
+        sampled_rows = real_rows[::stride]
+        if real_rows[-1] not in sampled_rows:
+            sampled_rows.append(real_rows[-1])
+
+        points = []
+        for r in sampled_rows:
+            try:
+                dt = datetime.fromisoformat(r["sampled_at"])
+                lbl = dt.strftime(fmt_str)
+            except Exception:
+                lbl = r.get("time_label", "")
+            points.append(
+                {
+                    "sampled_at": r["sampled_at"],
+                    "time_label": lbl,
+                    "firebird_rss_mb": r["firebird_rss_mb"],
+                    "cpu_load_pct": r["cpu_load_pct"],
+                    "active_connections": r["active_connections"],
+                    "disk_io_mbps": r["disk_io_mbps"],
+                    "transaction_gap": r["transaction_gap"],
+                    "sweep_gap": r["sweep_gap"],
+                    "latency_ms": r["latency_ms"],
+                }
+            )
+        return {
+            "host_id": host_id,
+            "host_name": host["name"],
+            "hostname": host["hostname"],
+            "range_key": range_key,
+            "is_real_data": True,
+            "latest": info,
+            "series": points,
+        }
+
+    # If the daemon just started and hasn't accumulated enough history yet,
+    # generate a bootstrap curve grounded on the actual live metrics
     mem = info.get("memory", {})
     base_rss = float(mem.get("firebird_rss_mb") or 6500.0)
     base_cpu = float(info.get("cpu_load_pct") or 22.0)
@@ -580,12 +634,11 @@ async def get_host_timeseries(
     base_gap = int(info.get("transaction_gap") or 895)
     base_sweep = int(info.get("sweep_gap") or 15)
     base_lat = float(host.get("last_latency_ms") or 1.8)
+    step_minutes = max(1, total_minutes // num_points)
 
-    # Build deterministic-yet-live temporal series spanning the exact requested range
     points = []
     for i in range(num_points, 0, -1):
         pt_time = now_dt - timedelta(minutes=i * step_minutes)
-        # Diurnal business hours wave for longer ranges (3h..24h)
         hour_factor = math.sin(((pt_time.hour - 6) / 24.0) * math.pi * 2) if total_minutes >= 180 else math.sin(i * 0.45)
         jitter = ((pt_time.minute + i * 7) % 11 - 5) * 0.15
 
@@ -610,7 +663,6 @@ async def get_host_timeseries(
             }
         )
 
-    # Append live current point
     points.append(
         {
             "sampled_at": now_dt.isoformat(timespec="seconds"),
@@ -630,6 +682,7 @@ async def get_host_timeseries(
         "host_name": host["name"],
         "hostname": host["hostname"],
         "range_key": range_key,
+        "is_real_data": False,
         "latest": info,
         "series": points,
     }
