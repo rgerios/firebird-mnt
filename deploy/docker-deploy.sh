@@ -31,7 +31,9 @@ else
     echo "ℹ️ Arquivo .env já existente preservado."
 fi
 
-echo "=== [3/4] Construindo e subindo o container Firebird Command Center ==="
+echo "=== [3/4] Limpando container antigo (se existir) e subindo o Firebird Command Center ==="
+docker rm -f inframgnt-server 2>/dev/null || true
+$COMPOSE_CMD down --remove-orphans 2>/dev/null || true
 $COMPOSE_CMD up -d --build
 
 echo "=== [4/4] Aguardando inicialização e Healthcheck HTTPS ==="
