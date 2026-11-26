@@ -1,12 +1,17 @@
-// InfraMGNT Mission Control Frontend (Pastel Management UI, Warm Critical Alerts, Chart.js Telemetry & Offline Lab)
+// Firebird Command Center — Venosan Brasil (Temporal Telemetry, TV NOC Mode, Offline Lab & Backup Orchestrator)
 
 let hostsState = [];
 let consoleLogs = [];
 let wsConnection = null;
 let wsReconnectTimer = null;
 let currentUser = null;
+let isTvNocMode = false;
+let telemetryTimer = null;
 
-// Chart.js instances
+// Chart.js instances (3 Temporal Line Charts + 3 Structural Charts)
+let timeRamCpuChart = null;
+let timeConnsIoChart = null;
+let timeTxGapChart = null;
 let memoryChartInstance = null;
 let tablesChartInstance = null;
 let serverHealthChartInstance = null;
@@ -23,13 +28,34 @@ window.fetch = async (...args) => {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  startWallboardClock();
   const authed = await loadCurrentUser();
   if (!authed) return;
   connectWebSocket();
   await refreshAllData();
   await loadHostTelemetry();
   updateBackupPreview();
+
+  // Auto-refresh temporal telemetry every 10 seconds for TV NOC Wallboard
+  telemetryTimer = setInterval(() => {
+    loadHostTelemetry();
+    if (isTvNocMode) {
+      loadStats();
+      loadExecutions();
+    }
+  }, 10000);
 });
+
+function startWallboardClock() {
+  const updateClock = () => {
+    const el = document.getElementById("tv-clock");
+    if (el) {
+      el.textContent = new Date().toLocaleTimeString("pt-BR", { hour12: false });
+    }
+  };
+  updateClock();
+  setInterval(updateClock, 1000);
+}
 
 async function loadCurrentUser() {
   try {
@@ -38,6 +64,11 @@ async function loadCurrentUser() {
       currentUser = await res.json();
       const navUser = document.getElementById("nav-username");
       if (navUser) navUser.textContent = currentUser.username;
+
+      // If logged in as read-only user (`firebird-ro`), automatically activate TV NOC Wallboard Mode
+      if (currentUser.role === "readonly") {
+        activateReadOnlyTvMode();
+      }
       return true;
     }
     window.location.href = "/login";
@@ -45,6 +76,41 @@ async function loadCurrentUser() {
   } catch (err) {
     console.error("Erro ao verificar sessão:", err);
     return false;
+  }
+}
+
+function activateReadOnlyTvMode() {
+  isTvNocMode = true;
+  document.body.classList.add("tv-noc-mode");
+  document.getElementById("tv-mode-banner")?.classList.remove("hidden");
+  document.getElementById("tv-mode-banner")?.classList.add("inline-flex");
+  document.getElementById("ro-user-pill")?.classList.remove("hidden");
+  const roleBadge = document.getElementById("role-badge-header");
+  if (roleBadge) {
+    roleBadge.textContent = "SOMENTE LEITURA • TV NOC";
+    roleBadge.className = "text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-sky-400/20 text-sky-200 border border-sky-400/40 font-bold";
+  }
+  const tvBtn = document.getElementById("btn-tv-mode");
+  if (tvBtn && currentUser?.role === "readonly") {
+    tvBtn.classList.add("hidden");
+  }
+}
+
+function toggleTvNocMode() {
+  if (currentUser?.role === "readonly") return; // locked in TV mode for firebird-ro
+  isTvNocMode = !isTvNocMode;
+  const banner = document.getElementById("tv-mode-banner");
+  const btn = document.getElementById("btn-tv-mode");
+  if (isTvNocMode) {
+    document.body.classList.add("tv-noc-mode");
+    banner?.classList.remove("hidden");
+    banner?.classList.add("inline-flex");
+    if (btn) btn.innerHTML = `<span>🛠️ Voltar ao Modo Admin</span>`;
+  } else {
+    document.body.classList.remove("tv-noc-mode");
+    banner?.classList.add("hidden");
+    banner?.classList.remove("inline-flex");
+    if (btn) btn.innerHTML = `<span>📺 Modo TV NOC</span>`;
   }
 }
 
@@ -78,8 +144,10 @@ async function loadSecurityUsers() {
           <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
             u.role === "admin"
               ? "bg-teal-300/15 text-teal-200 border border-teal-300/30"
+              : u.role === "readonly"
+              ? "bg-violet-300/15 text-violet-200 border border-violet-300/30"
               : "bg-sky-300/15 text-sky-200 border border-sky-300/30"
-          }">${escapeHtml(u.role)}</span>
+          }">${escapeHtml(u.role === "readonly" ? "TV / Somente Leitura" : u.role)}</span>
         </td>
         <td class="py-2 px-3 text-slate-400">${formatIsoDate(u.last_login_at)}</td>
         <td class="py-2 px-3 text-right">
@@ -133,7 +201,7 @@ async function submitNewUser(event) {
   });
   const data = await res.json();
   if (!res.ok) {
-    alert(data.detail || "Erro ao criar operador.");
+    alert(data.detail || "Erro ao criar usuário.");
     return;
   }
   document.getElementById("sec-new-username").value = "";
@@ -143,7 +211,7 @@ async function submitNewUser(event) {
 }
 
 async function deleteUserAccount(userId) {
-  if (!confirm("Remover o acesso deste usuário ao InfraMGNT?")) return;
+  if (!confirm("Remover o acesso deste usuário ao Firebird Command Center?")) return;
   const res = await fetch(`/api/auth/users/${userId}`, { method: "DELETE" });
   if (res.ok) {
     await loadSecurityUsers();
@@ -169,7 +237,7 @@ async function loadStats() {
     document.getElementById("stat-hosts").textContent = `${data.online_hosts} / ${data.total_hosts}`;
     document.getElementById("stat-hosts-sub").textContent =
       data.online_hosts === data.total_hosts && data.total_hosts > 0
-        ? "Todos os servidores online"
+        ? "Todos os servidores operacionais"
         : `${data.online_hosts} servidor(es) online`;
 
     document.getElementById("stat-execs").textContent = data.total_executions;
@@ -178,7 +246,7 @@ async function loadStats() {
       runningEl.textContent = `${data.running_executions} job(s) em execução...`;
       runningEl.className = "text-xs text-amber-300 font-semibold animate-pulse";
     } else {
-      runningEl.textContent = "Fila livre";
+      runningEl.textContent = "Fila livre • Monitorando";
       runningEl.className = "text-xs text-teal-200";
     }
 
@@ -209,7 +277,7 @@ function renderHostsGrid() {
   if (!hostsState.length) {
     container.innerHTML = `
       <div class="col-span-2 p-6 text-center rounded-xl border border-dashed border-slate-800 text-slate-400 text-xs">
-        Nenhum servidor cadastrado. Clique em "Cadastrar Servidor" para começar.
+        Nenhum servidor cadastrado.
       </div>`;
     return;
   }
@@ -226,12 +294,12 @@ function renderHostsGrid() {
         : `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-sky-300/15 text-sky-200 border border-sky-300/30">Teste / Homologação</span>`;
 
       const modeBadge = h.is_simulated
-        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono-code bg-violet-300/15 text-violet-200 border border-violet-300/30" title="Simula comandos gbak/gfix localmente">SIMULAÇÃO</span>`
-        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono-code bg-teal-300/20 text-teal-200 border border-teal-300/40" title="Executa comandos reais via SSH">SSH REAL</span>`;
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono-code bg-violet-300/15 text-violet-200 border border-violet-300/30">SIMULAÇÃO</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono-code bg-teal-300/20 text-teal-200 border border-teal-300/40">SSH REAL</span>`;
 
       const statusBadge = isOnline
         ? `<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-200">
-             <span class="w-2 h-2 rounded-full bg-teal-300 pulse-green"></span>
+             <span class="w-2 h-2 rounded-full bg-[#00a896] pulse-green"></span>
              Online ${h.last_latency_ms ? `(${h.last_latency_ms} ms)` : ""}
            </span>`
         : `<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-300">
@@ -276,8 +344,8 @@ function renderHostsGrid() {
           </div>
 
           <div class="flex items-center gap-1.5">
-            <button onclick="loadHostTelemetry(${h.id})" class="px-2.5 py-1 rounded-lg bg-teal-300/15 hover:bg-teal-300/30 text-teal-100 border border-teal-300/30 text-[11px] font-semibold transition">
-              Telemetria & Gráficos
+            <button onclick="loadHostTelemetry(${h.id})" class="px-2.5 py-1 rounded-lg bg-[#00a896]/25 hover:bg-[#00a896] text-teal-100 hover:text-white border border-teal-300/30 text-[11px] font-semibold transition">
+              📊 Focar Gráficos
             </button>
             <button onclick="openInspectModal(${h.id})" class="px-2.5 py-1 rounded-lg bg-sky-300/15 hover:bg-sky-300/30 text-sky-100 border border-sky-300/30 text-[11px] font-medium transition">
               gstat -h
@@ -285,10 +353,10 @@ function renderHostsGrid() {
             <button onclick="checkSingleHost(${h.id})" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition">
               Ping
             </button>
-            <button onclick="openHostModal(${h.id})" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition">
+            <button onclick="openHostModal(${h.id})" class="ro-hide-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition">
               Editar
             </button>
-            <button onclick="deleteHost(${h.id})" class="px-2 py-1 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-200 text-[11px] transition" title="Remover servidor">
+            <button onclick="deleteHost(${h.id})" class="ro-hide-btn px-2 py-1 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-200 text-[11px] transition" title="Remover servidor">
               ✕
             </button>
           </div>
@@ -324,18 +392,19 @@ function populateHostDropdowns() {
 
   const prevMaintId = Number(document.getElementById("maint-host")?.value) || defaultProdId;
 
-  document.getElementById("pipe-prod-host").innerHTML = buildOpts(defaultProdId);
-  document.getElementById("pipe-test-host").innerHTML = buildOpts(defaultTestId);
-  document.getElementById("bkp-host").innerHTML = buildOpts(defaultProdId);
-  document.getElementById("xfer-src-host").innerHTML = buildOpts(defaultProdId);
-  document.getElementById("xfer-dst-host").innerHTML = buildOpts(defaultTestId);
-  document.getElementById("rest-host").innerHTML = buildOpts(defaultTestId);
-  document.getElementById("maint-host").innerHTML = buildOpts(prevMaintId);
+  const setHtml = (id, html) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  };
 
-  const telSelect = document.getElementById("telemetry-host-select");
-  if (telSelect) {
-    telSelect.innerHTML = buildOpts(currentTelemetryHostId);
-  }
+  setHtml("pipe-prod-host", buildOpts(defaultProdId));
+  setHtml("pipe-test-host", buildOpts(defaultTestId));
+  setHtml("bkp-host", buildOpts(defaultProdId));
+  setHtml("xfer-src-host", buildOpts(defaultProdId));
+  setHtml("xfer-dst-host", buildOpts(defaultTestId));
+  setHtml("rest-host", buildOpts(defaultTestId));
+  setHtml("maint-host", buildOpts(prevMaintId));
+  setHtml("telemetry-host-select", buildOpts(currentTelemetryHostId));
 
   const offlineHostEl = document.getElementById("offline-host-select");
   if (offlineHostEl) {
@@ -352,7 +421,7 @@ function populateHostDropdowns() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Real-Time Server & Firebird Telemetry Charts (Chart.js) + rfunc & Services
+// 2. Real-Time Temporal & Structural Telemetry Charts (Chart.js)
 // ---------------------------------------------------------------------------
 
 async function loadHostTelemetry(hostId = null) {
@@ -367,11 +436,12 @@ async function loadHostTelemetry(hostId = null) {
   if (!currentTelemetryHostId) return;
 
   try {
-    const res = await fetch(`/api/hosts/${currentTelemetryHostId}/inspect`);
+    const res = await fetch(`/api/hosts/${currentTelemetryHostId}/timeseries?limit=24`);
     if (!res.ok) return;
-    const info = await res.json();
+    const payload = await res.json();
+    const info = payload.latest;
+    const series = payload.series || [];
 
-    // Update top header badges & KPIs
     document.getElementById("telemetry-host-badge").textContent = `${info.host_name} (${info.hostname || ""})`;
     const mem = info.memory || {
       ram_total_mb: 16384,
@@ -385,6 +455,11 @@ async function loadHostTelemetry(hostId = null) {
     document.getElementById("stat-fb-ram").textContent = `${mem.firebird_rss_mb} MB (${mem.firebird_pct}%)`;
     document.getElementById("stat-fb-conns").textContent = `${info.active_connections || 0} sessões ativas na porta 3050`;
 
+    // Temporal Header Badges
+    document.getElementById("ts-ram-now").textContent = `${mem.firebird_rss_mb} MB • CPU ${info.cpu_load_pct}%`;
+    document.getElementById("ts-conn-now").textContent = `${info.active_connections || 0} sessões 3050`;
+    document.getElementById("ts-gap-now").textContent = `Gap Next-OAT: ${info.transaction_gap}`;
+
     // Check rfunc status
     const rfuncSvc = (info.services || []).find((s) => s.id === "rfunc");
     const rfuncEl = document.getElementById("stat-rfunc-status");
@@ -396,7 +471,7 @@ async function loadHostTelemetry(hostId = null) {
       rfuncEl.className = "text-xl font-extrabold text-amber-300 mt-1";
     }
 
-    // Update Chart footers
+    // Structural Chart footers
     document.getElementById("chart-ram-badge").textContent = `${(mem.ram_total_mb / 1024).toFixed(0)} GB Total`;
     document.getElementById("ram-fb-val").textContent = `${mem.firebird_rss_mb} MB`;
     document.getElementById("ram-cache-val").textContent = `${mem.os_cache_mb} MB`;
@@ -412,10 +487,203 @@ async function loadHostTelemetry(hostId = null) {
     document.getElementById("tel-disk-free").textContent = info.disk_free;
     document.getElementById("tel-conns").textContent = `${info.active_connections || 0} ativas`;
 
+    renderTemporalCharts(series);
     renderTelemetryCharts(info);
     renderTelemetryServices(info.services || []);
   } catch (err) {
-    console.error("Erro ao carregar telemetria do host:", err);
+    console.error("Erro ao carregar telemetria temporal:", err);
+  }
+}
+
+function renderTemporalCharts(series) {
+  if (typeof Chart === "undefined" || !series.length) return;
+
+  const labels = series.map((p) => p.time_label);
+  const rssData = series.map((p) => p.firebird_rss_mb);
+  const cpuData = series.map((p) => p.cpu_load_pct);
+  const connData = series.map((p) => p.active_connections);
+  const ioData = series.map((p) => p.disk_io_mbps);
+  const gapData = series.map((p) => p.transaction_gap);
+  const latData = series.map((p) => p.latency_ms);
+
+  const commonScaleX = {
+    ticks: { color: "#94a3b8", font: { size: 9, family: "JetBrains Mono" }, maxTicksLimit: 7 },
+    grid: { color: "rgba(148, 163, 184, 0.08)" },
+  };
+
+  // Temporal Chart 1: Firebird RSS (MB) & CPU (%)
+  const ctx1 = document.getElementById("chartTimeRamCpu")?.getContext("2d");
+  if (ctx1) {
+    if (timeRamCpuChart) timeRamCpuChart.destroy();
+    timeRamCpuChart = new Chart(ctx1, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Firebird RAM (MB)",
+            data: rssData,
+            borderColor: "#2dd4bf",
+            backgroundColor: "rgba(45, 212, 191, 0.14)",
+            borderWidth: 2,
+            pointRadius: 1.5,
+            tension: 0.35,
+            fill: true,
+            yAxisID: "y",
+          },
+          {
+            label: "CPU Host (%)",
+            data: cpuData,
+            borderColor: "#fb923c",
+            backgroundColor: "rgba(251, 146, 60, 0.08)",
+            borderWidth: 2,
+            pointRadius: 1.5,
+            tension: 0.35,
+            fill: false,
+            yAxisID: "y1",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: commonScaleX,
+          y: {
+            position: "left",
+            ticks: { color: "#5eead4", font: { size: 9 } },
+            grid: { color: "rgba(148, 163, 184, 0.08)" },
+          },
+          y1: {
+            position: "right",
+            min: 0,
+            max: 100,
+            ticks: { color: "#fdba74", font: { size: 9 } },
+            grid: { drawOnChartArea: false },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: "#cbd5e1", font: { size: 10 }, boxWidth: 10 } },
+        },
+      },
+    });
+  }
+
+  // Temporal Chart 2: Active Connections (3050) & Disk I/O (MB/s)
+  const ctx2 = document.getElementById("chartTimeConnsIo")?.getContext("2d");
+  if (ctx2) {
+    if (timeConnsIoChart) timeConnsIoChart.destroy();
+    timeConnsIoChart = new Chart(ctx2, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Sessões Porta 3050",
+            data: connData,
+            borderColor: "#7dd3fc",
+            backgroundColor: "rgba(125, 211, 252, 0.16)",
+            borderWidth: 2,
+            pointRadius: 1.5,
+            tension: 0.35,
+            fill: true,
+            yAxisID: "y",
+          },
+          {
+            label: "I/O Disco (MB/s)",
+            data: ioData,
+            borderColor: "#a7f3d0",
+            borderDash: [4, 3],
+            borderWidth: 1.8,
+            pointRadius: 1.5,
+            tension: 0.35,
+            fill: false,
+            yAxisID: "y1",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: commonScaleX,
+          y: {
+            position: "left",
+            ticks: { color: "#bae6fd", font: { size: 9 } },
+            grid: { color: "rgba(148, 163, 184, 0.08)" },
+          },
+          y1: {
+            position: "right",
+            ticks: { color: "#a7f3d0", font: { size: 9 } },
+            grid: { drawOnChartArea: false },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: "#cbd5e1", font: { size: 10 }, boxWidth: 10 } },
+        },
+      },
+    });
+  }
+
+  // Temporal Chart 3: Transaction Gap (Next - OAT) & Latency (ms)
+  const ctx3 = document.getElementById("chartTimeTxGap")?.getContext("2d");
+  if (ctx3) {
+    if (timeTxGapChart) timeTxGapChart.destroy();
+    timeTxGapChart = new Chart(ctx3, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Gap Transações (Next - OAT)",
+            data: gapData,
+            borderColor: "#c4b5fd",
+            backgroundColor: "rgba(196, 181, 253, 0.16)",
+            borderWidth: 2,
+            pointRadius: 1.5,
+            tension: 0.35,
+            fill: true,
+            yAxisID: "y",
+          },
+          {
+            label: "Latência SSH (ms)",
+            data: latData,
+            borderColor: "#fde047",
+            borderWidth: 1.8,
+            pointRadius: 1.5,
+            tension: 0.35,
+            fill: false,
+            yAxisID: "y1",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: commonScaleX,
+          y: {
+            position: "left",
+            ticks: { color: "#ddd6fe", font: { size: 9 } },
+            grid: { color: "rgba(148, 163, 184, 0.08)" },
+          },
+          y1: {
+            position: "right",
+            ticks: { color: "#fef08a", font: { size: 9 } },
+            grid: { drawOnChartArea: false },
+          },
+        },
+        plugins: {
+          legend: { labels: { color: "#cbd5e1", font: { size: 10 }, boxWidth: 10 } },
+        },
+      },
+    });
   }
 }
 
@@ -430,7 +698,7 @@ function renderTelemetryCharts(info) {
     firebird_pct: 12.5,
   };
 
-  // 1. Doughnut Chart: Memory Allocation (Pastel Palette)
+  // Doughnut Chart: Memory Allocation
   const ctxMem = document.getElementById("chartMemory")?.getContext("2d");
   if (ctxMem) {
     if (memoryChartInstance) memoryChartInstance.destroy();
@@ -442,12 +710,12 @@ function renderTelemetryCharts(info) {
           {
             data: [mem.firebird_rss_mb, mem.os_cache_mb, mem.other_processes_mb, mem.ram_free_mb],
             backgroundColor: [
-              "rgba(125, 211, 252, 0.88)", // Pastel Sky (Firebird)
-              "rgba(110, 231, 183, 0.82)", // Pastel Mint (Linux Cache)
+              "rgba(0, 168, 150, 0.90)", // Venosan Teal (Firebird)
+              "rgba(125, 211, 252, 0.82)", // Pastel Sky (Linux Cache)
               "rgba(253, 186, 116, 0.80)", // Pastel Peach (Other)
               "rgba(196, 181, 253, 0.35)", // Soft Lavender (Free)
             ],
-            borderColor: "#0f172a",
+            borderColor: "#09131c",
             borderWidth: 2,
           },
         ],
@@ -455,6 +723,7 @@ function renderTelemetryCharts(info) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         cutout: "66%",
         plugins: {
           legend: {
@@ -466,7 +735,7 @@ function renderTelemetryCharts(info) {
     });
   }
 
-  // 2. Bar Chart: Table Density vs Garbage Backversions
+  // Bar Chart: Table Density vs Garbage Backversions
   const ctxTbl = document.getElementById("chartTables")?.getContext("2d");
   if (ctxTbl) {
     if (tablesChartInstance) tablesChartInstance.destroy();
@@ -479,13 +748,13 @@ function renderTelemetryCharts(info) {
           {
             label: "Registros Ativos (Milhares)",
             data: tbls.map((t) => t.records_k),
-            backgroundColor: "rgba(196, 181, 253, 0.78)", // Pastel Lavender
+            backgroundColor: "rgba(0, 168, 150, 0.78)",
             borderRadius: 5,
           },
           {
             label: "Lixo / Backversions (Milhares)",
             data: tbls.map((t) => t.garbage_k),
-            backgroundColor: "rgba(251, 146, 60, 0.88)", // Warm Amber
+            backgroundColor: "rgba(251, 146, 60, 0.88)",
             borderRadius: 5,
           },
         ],
@@ -493,6 +762,7 @@ function renderTelemetryCharts(info) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         scales: {
           x: {
             ticks: { color: "#94a3b8", font: { size: 9, family: "JetBrains Mono" } },
@@ -512,7 +782,7 @@ function renderTelemetryCharts(info) {
     });
   }
 
-  // 3. Horizontal Bar Chart: Server Saturation (CPU %, RAM Firebird %, Disk %, Connections %)
+  // Horizontal Bar Chart: Server Saturation
   const ctxSrv = document.getElementById("chartServerHealth")?.getContext("2d");
   if (ctxSrv) {
     if (serverHealthChartInstance) serverHealthChartInstance.destroy();
@@ -530,7 +800,7 @@ function renderTelemetryCharts(info) {
             label: "% Utilizado",
             data: [cpuPct, fbRamPct, diskPct, connPct],
             backgroundColor: [
-              cpuPct > 80 ? "rgba(248, 113, 113, 0.85)" : "rgba(110, 231, 183, 0.82)",
+              cpuPct > 80 ? "rgba(248, 113, 113, 0.85)" : "rgba(0, 168, 150, 0.85)",
               "rgba(125, 211, 252, 0.85)",
               diskPct > 85 ? "rgba(248, 113, 113, 0.88)" : "rgba(196, 181, 253, 0.82)",
               "rgba(253, 224, 71, 0.78)",
@@ -543,6 +813,7 @@ function renderTelemetryCharts(info) {
         indexAxis: "y",
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         scales: {
           x: {
             max: 100,
@@ -570,7 +841,7 @@ function renderTelemetryServices(services) {
     .map((s) => {
       const isOk = s.status === "active";
       const cardCls = isOk ? "pastel-card-safe" : "warm-card-io";
-      const dotCls = isOk ? "bg-teal-300 pulse-green" : "bg-amber-400";
+      const dotCls = isOk ? "bg-[#00a896] pulse-green" : "bg-amber-400";
       const badgeTxt = isOk ? "OPERACIONAL" : "VERIFICAR";
       const badgeCls = isOk
         ? "bg-teal-300/15 text-teal-200 border-teal-300/30"
@@ -599,16 +870,16 @@ function renderTelemetryServices(services) {
 }
 
 function syncPipelineDefaults() {
-  const prodId = Number(document.getElementById("pipe-prod-host").value);
-  const testId = Number(document.getElementById("pipe-test-host").value);
+  const prodId = Number(document.getElementById("pipe-prod-host")?.value);
+  const testId = Number(document.getElementById("pipe-test-host")?.value);
   const prod = hostsState.find((h) => h.id === prodId);
   const test = hostsState.find((h) => h.id === testId);
 
-  if (prod) {
+  if (prod && document.getElementById("pipe-prod-db")) {
     document.getElementById("pipe-prod-db").value = prod.default_db_path;
     document.getElementById("pipe-prod-bkp-dir").value = prod.default_backup_dir;
   }
-  if (test) {
+  if (test && document.getElementById("pipe-test-bkp-dir")) {
     document.getElementById("pipe-test-bkp-dir").value = test.default_backup_dir;
     document.getElementById("pipe-test-db").value = test.default_db_path;
   }
@@ -617,7 +888,7 @@ function syncPipelineDefaults() {
 function syncMaintDefaults() {
   const hostId = Number(document.getElementById("maint-host")?.value);
   const host = hostsState.find((h) => h.id === hostId);
-  if (host) {
+  if (host && document.getElementById("maint-db-path")) {
     document.getElementById("maint-db-path").value = host.default_db_path;
   }
 }
@@ -685,7 +956,7 @@ async function openInspectModal(hostId) {
           <td class="py-2 px-3 font-mono-code text-slate-300">${escapeHtml(f.size)}</td>
           <td class="py-2 px-3 text-slate-400">${escapeHtml(f.modified)}</td>
           <td class="py-2 px-3 text-right">
-            <button onclick="useBackupFile('${escapeHtml(f.path)}')" class="px-2 py-0.5 rounded bg-teal-300/20 hover:bg-teal-300 text-teal-200 hover:text-slate-950 text-[11px] font-semibold transition">
+            <button onclick="useBackupFile('${escapeHtml(f.path)}')" class="ro-hide-btn px-2 py-0.5 rounded bg-teal-300/20 hover:bg-teal-300 text-teal-200 hover:text-slate-950 text-[11px] font-semibold transition">
               Usar nos Jobs
             </button>
           </td>
@@ -857,6 +1128,7 @@ function selectJobTab(tab) {
   tabs.forEach((t) => {
     const btn = document.getElementById(`tab-btn-${t}`);
     const form = document.getElementById(`form-job-${t}`);
+    if (!btn || !form) return;
     const activeCls = t === "pipeline" || t === "backup" ? "job-tab-active-warm" : "job-tab-active-pastel";
     btn.classList.remove("job-tab-active-warm", "job-tab-active-pastel");
     if (t === tab) {
@@ -1196,7 +1468,7 @@ function renderOfflineReport(rep) {
 
       <button
         onclick="runOfflineOptimizationAction('all')"
-        class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-300 to-emerald-400 hover:from-teal-200 hover:to-emerald-300 text-slate-950 text-xs font-extrabold shadow-lg shadow-teal-400/20 flex items-center gap-2 transition"
+        class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00a896] to-teal-300 hover:from-teal-300 hover:to-emerald-300 text-slate-950 text-xs font-extrabold shadow-lg shadow-teal-400/20 flex items-center gap-2 transition"
       >
         <span>⚡ Aplicar Todas as Correções neste Arquivo Offline (1-Clique)</span>
       </button>
@@ -1253,7 +1525,7 @@ function renderOfflineReport(rep) {
   `;
 }
 
-// Maintenance Routines from ROTINAS_MANUTENCAO.md
+// Maintenance Routines
 async function runMaintenanceJob(jobId) {
   const hostId = Number(document.getElementById("maint-host").value);
   const dbPath = document.getElementById("maint-db-path").value.trim();
@@ -1285,7 +1557,8 @@ async function runMaintenanceJob(jobId) {
 
 async function triggerJobEndpoint(url, payload) {
   try {
-    document.getElementById("terminal-status-text").textContent = "Executando Job remoto via SSH...";
+    const statusEl = document.getElementById("terminal-status-text");
+    if (statusEl) statusEl.textContent = "Executando Job remoto via SSH...";
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1294,9 +1567,10 @@ async function triggerJobEndpoint(url, payload) {
     const data = await res.json();
     if (!res.ok) {
       appendLocalConsoleLine(`BLOQUEIO / ERRO: ${data.detail || "Falha"}`, "error");
+      alert(data.detail || "Operação não permitida.");
       return;
     }
-    if (data.output_file) {
+    if (data.output_file && document.getElementById("xfer-file")) {
       document.getElementById("xfer-file").value = data.output_file;
     }
     await refreshAllData();
@@ -1317,8 +1591,8 @@ function connectWebSocket() {
   wsConnection.onopen = () => {
     const dot = document.getElementById("ws-dot");
     const txt = document.getElementById("ws-text");
-    dot.className = "w-2.5 h-2.5 rounded-full bg-teal-300 pulse-green";
-    txt.textContent = "Stream Ativo (WebSocket)";
+    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-[#00a896] pulse-green";
+    if (txt) txt.textContent = "Stream Ativo (WSS/WS)";
   };
 
   wsConnection.onmessage = async (event) => {
@@ -1338,17 +1612,20 @@ function connectWebSocket() {
           : msg.status === "warning"
           ? "FINALIZADO COM ALERTA"
           : "FALHA NA EXECUÇÃO";
-      document.getElementById("terminal-status-text").textContent =
-        `Job #${msg.execution_id} (${msg.job_title}): ${statusLabel} em ${msg.duration_seconds?.toFixed(2) || 0}s`;
+      const stEl = document.getElementById("terminal-status-text");
+      if (stEl) {
+        stEl.textContent = `Job #${msg.execution_id} (${msg.job_title}): ${statusLabel} em ${msg.duration_seconds?.toFixed(2) || 0}s`;
+      }
       await refreshAllData();
+      await loadHostTelemetry();
     }
   };
 
   wsConnection.onclose = () => {
     const dot = document.getElementById("ws-dot");
     const txt = document.getElementById("ws-text");
-    dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400";
-    txt.textContent = "Reconectando Stream...";
+    if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400";
+    if (txt) txt.textContent = "Reconectando Stream...";
     clearTimeout(wsReconnectTimer);
     wsReconnectTimer = setTimeout(connectWebSocket, 2500);
   };
@@ -1359,7 +1636,7 @@ function appendLocalConsoleLine(text, level = "info") {
   consoleLogs.push({
     type: "log",
     timestamp: now,
-    host: "InfraMGNT",
+    host: "CommandCenter",
     step: "SYS",
     level,
     line: text,
@@ -1369,7 +1646,8 @@ function appendLocalConsoleLine(text, level = "info") {
 
 function renderConsoleLines() {
   const container = document.getElementById("terminal-output");
-  const filter = document.getElementById("console-filter").value;
+  if (!container) return;
+  const filter = document.getElementById("console-filter")?.value || "all";
 
   const filtered = consoleLogs.filter((item) => {
     if (filter === "cmd") return item.level === "cmd";
@@ -1421,7 +1699,7 @@ function renderConsoleLines() {
 
   document.getElementById("terminal-line-count").textContent = `${filtered.length} linhas`;
 
-  if (document.getElementById("console-autoscroll").checked) {
+  if (document.getElementById("console-autoscroll")?.checked) {
     container.scrollTop = container.scrollHeight;
   }
 }
@@ -1454,7 +1732,7 @@ async function loadExecutions() {
       tbody.innerHTML = `
         <tr>
           <td colspan="8" class="py-8 text-center text-slate-500">
-            Nenhuma rotina executada ainda. Use o Catálogo de Jobs acima para iniciar.
+            Nenhuma rotina executada ainda.
           </td>
         </tr>`;
       return;

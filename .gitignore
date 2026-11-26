@@ -15,6 +15,7 @@ backend/data/*.db-journal
 backend/data/logs/
 backend/data/ssh/
 backend/data/offline_lab/
+backend/data/certs/
 
 # Environment secrets
 .env

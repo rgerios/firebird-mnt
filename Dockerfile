@@ -6,9 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Instala utilitários Linux para backup/transporte SSH, compressão, timezone e utilitários Firebird (gstat/gfix/gbak)
+# Instala utilitários Linux para backup/transporte SSH, compressão, openssl, timezone e utilitários Firebird
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-client \
+    openssl \
     rsync \
     zstd \
     gzip \
@@ -28,13 +29,12 @@ COPY backend /app/backend
 COPY frontend /app/frontend
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
-    mkdir -p /app/backend/data/logs /app/backend/data/ssh
+    mkdir -p /app/backend/data/logs /app/backend/data/ssh /app/backend/data/certs /app/backend/data/offline_lab
 
 WORKDIR /app/backend
-EXPOSE 8000
+EXPOSE 8000 8443
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8000/api/health || exit 1
+    CMD curl -kfsS https://127.0.0.1:8443/api/health || curl -fsS http://127.0.0.1:8000/api/health || exit 1
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

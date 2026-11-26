@@ -133,6 +133,25 @@ def init_db() -> None:
             """
         )
 
+        # Time-series telemetry history table for Temporal Charts (TV NOC Wallboard)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS telemetry_samples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                host_id INTEGER NOT NULL,
+                sampled_at TEXT NOT NULL,
+                time_label TEXT NOT NULL,
+                firebird_rss_mb REAL NOT NULL,
+                cpu_load_pct REAL NOT NULL,
+                active_connections INTEGER NOT NULL,
+                disk_io_mbps REAL NOT NULL,
+                transaction_gap INTEGER NOT NULL,
+                sweep_gap INTEGER NOT NULL,
+                latency_ms REAL NOT NULL
+            )
+            """
+        )
+
         # Seed default Admin User if empty
         cursor.execute("SELECT COUNT(*) as count FROM users")
         u_row = cursor.fetchone()
@@ -147,10 +166,23 @@ def init_db() -> None:
                 """,
                 (
                     default_admin_user,
-                    "Administrador InfraMGNT (Venosan)",
+                    "Administrador Firebird Command Center",
                     hash_password(default_admin_pass),
                     ts,
                 ),
+            )
+
+        # Always ensure the read-only TV Wallboard user `firebird-ro` exists
+        cursor.execute("SELECT id FROM users WHERE username = 'firebird-ro'")
+        if not cursor.fetchone():
+            ro_pass = os.environ.get("INFRAMGNT_RO_PASSWORD", "VenosanRO@2026")
+            ts = now_iso()
+            cursor.execute(
+                """
+                INSERT INTO users (username, full_name, role, password_hash, is_active, created_at)
+                VALUES ('firebird-ro', 'Painel TV NOC (Somente Leitura)', 'readonly', ?, 1, ?)
+                """,
+                (hash_password(ro_pass), ts),
             )
 
         # Seed default servers if empty so the dashboard works out-of-the-box

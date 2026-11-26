@@ -3,49 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — InfraMGNT • Proteção de Banco Crítico Firebird</title>
+  <title>Login — Firebird Command Center • Venosan Brasil</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
 </head>
-<body class="min-h-screen flex flex-col justify-between bg-[#070a12] text-slate-100 antialiased selection:bg-orange-500 selection:text-white relative overflow-hidden">
+<body class="min-h-screen flex flex-col justify-between text-slate-100 antialiased selection:bg-teal-400 selection:text-slate-950 relative overflow-hidden">
 
-  <!-- Background Subtle Grid / Glow -->
+  <!-- Background Ambient Glows -->
   <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
-    <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-orange-600/10 blur-3xl"></div>
-    <div class="absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-red-600/10 blur-3xl"></div>
+    <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-[#00a896]/15 blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 w-[30rem] h-[30rem] rounded-full bg-orange-500/15 blur-3xl"></div>
   </div>
 
-  <!-- Top Security Strip -->
-  <div class="relative z-10 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-4 py-2.5 text-center">
-    <p class="text-xs font-mono-code text-slate-400 flex items-center justify-center gap-2">
-      <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
-      <span>AMBIENTE CRÍTICO PROTEGIDO • PROXMOX LXC / FIREBIRD DATABASE OPS</span>
+  <!-- Top Venosan Security Strip -->
+  <div class="relative z-10 border-b border-teal-500/25 bg-[#07111a]/90 backdrop-blur-md px-4 py-2.5 text-center">
+    <p class="text-xs font-mono-code text-teal-200/90 flex items-center justify-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-[#00a896] pulse-green"></span>
+      <span>VENOSAN BRASIL • FIREBIRD COMMAND CENTER • AMBIENTE CRÍTICO PROTEGIDO (HTTPS/TLS)</span>
     </p>
   </div>
 
   <!-- Main Login Card -->
   <main class="relative z-10 flex-1 flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl p-7 backdrop-blur-xl">
+    <div class="w-full max-w-md pastel-panel rounded-2xl shadow-2xl p-7">
       
-      <!-- Brand Header -->
+      <!-- Brand Header: Venosan Logo + Firebird Phoenix Logo -->
       <div class="flex flex-col items-center text-center mb-6">
-        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-xl shadow-orange-500/20 border border-orange-400/30 mb-3.5">
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
+        <div class="flex items-center justify-center gap-4 mb-4">
+          <img src="/assets/venosan-logo.svg" alt="Venosan Brasil" class="h-11 w-auto" />
+          <div class="h-8 w-[1px] bg-slate-700"></div>
+          <img src="/assets/firebird-logo.png" alt="Firebird Database" class="h-12 w-12 object-contain drop-shadow-[0_0_12px_rgba(249,115,22,0.45)]" />
         </div>
         <div class="flex items-center gap-2">
-          <h1 class="text-xl font-bold tracking-tight text-white">InfraMGNT</h1>
-          <span class="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 font-semibold">
-            Venosan Guard
-          </span>
+          <h1 class="text-xl font-extrabold tracking-tight text-white">Firebird Command Center</h1>
         </div>
-        <p class="text-xs text-slate-400 mt-1">
-          Autenticação obrigatória para operação de Backup, Restore e Manutenção do Firebird
+        <p class="text-xs text-slate-300/80 mt-1">
+          Central de Telemetria Temporal, Backup Quente e Saúde do Banco Firebird
         </p>
+      </div>
+
+      <!-- Quick Profile Selector Pills (Admin vs TV NOC Read-Only) -->
+      <div class="grid grid-cols-2 gap-2.5 mb-5">
+        <button type="button" onclick="fillProfile('admin', 'Venosan@2026')" class="p-2.5 rounded-xl bg-slate-900/90 hover:bg-teal-950/60 border border-teal-400/30 text-left transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase text-teal-300">Acesso Total (DBA)</span>
+            <span class="text-[10px] font-mono-code text-slate-400">admin</span>
+          </div>
+          <p class="text-xs font-semibold text-white mt-0.5">Administrador</p>
+        </button>
+
+        <button type="button" onclick="fillProfile('firebird-ro', 'VenosanRO@2026')" class="p-2.5 rounded-xl bg-slate-900/90 hover:bg-sky-950/60 border border-sky-400/30 text-left transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase text-sky-300">📺 Modo TV / NOC</span>
+            <span class="text-[10px] font-mono-code text-slate-400">firebird-ro</span>
+          </div>
+          <p class="text-xs font-semibold text-white mt-0.5">Somente Leitura</p>
+        </button>
       </div>
 
       <!-- Error Alert Box -->
@@ -59,47 +75,43 @@
       <!-- Login Form -->
       <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label for="username" class="block text-xs font-medium text-slate-300 mb-1.5">Usuário Operador / Admin</label>
-          <div class="relative">
-            <input
-              type="text"
-              id="username"
-              name="username"
-              required
-              autofocus
-              autocomplete="username"
-              placeholder="admin"
-              class="w-full font-mono-code rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-orange-500 focus:outline-none transition"
-            />
-          </div>
+          <label for="username" class="block text-xs font-medium text-slate-300 mb-1.5">Usuário (`admin` ou `firebird-ro`)</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            required
+            autofocus
+            autocomplete="username"
+            placeholder="admin ou firebird-ro"
+            class="w-full font-mono-code rounded-xl bg-slate-950/90 border border-slate-700/80 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-[#00a896] focus:outline-none transition"
+          />
         </div>
 
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <label for="password" class="block text-xs font-medium text-slate-300">Senha de Acesso</label>
-            <button type="button" onclick="togglePass()" id="toggle-pass-btn" class="text-[11px] text-slate-400 hover:text-orange-400 transition">
+            <button type="button" onclick="togglePass()" id="toggle-pass-btn" class="text-[11px] text-teal-300/80 hover:text-teal-200 transition">
               Mostrar senha
             </button>
           </div>
-          <div class="relative">
-            <input
-              type="password"
-              id="password"
-              name="password"
-              required
-              autocomplete="current-password"
-              placeholder="••••••••••••"
-              class="w-full font-mono-code rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-orange-500 focus:outline-none transition"
-            />
-          </div>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••••••"
+            class="w-full font-mono-code rounded-xl bg-slate-950/90 border border-slate-700/80 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-[#00a896] focus:outline-none transition"
+          />
         </div>
 
         <button
           type="submit"
           id="login-submit-btn"
-          class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-semibold text-sm shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 transition"
+          class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#00a896] to-[#00796b] hover:from-[#00bfa5] hover:to-[#00897b] text-white font-bold text-sm shadow-lg shadow-teal-600/25 flex items-center justify-center gap-2 transition"
         >
-          <span>Acessar Painel InfraMGNT</span>
+          <span>Entrar no Firebird Command Center</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
@@ -108,16 +120,9 @@
 
       <!-- Security Info Box -->
       <div class="mt-6 pt-4 border-t border-slate-800/80 space-y-2 text-[11px] text-slate-400">
-        <div class="flex items-center justify-between">
-          <span>Proteção Brute-Force:</span>
-          <span class="font-mono-code text-emerald-400">Ativa (Bloqueio IP 5 tentativas)</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span>Sessão Criptografada:</span>
-          <span class="font-mono-code text-slate-300">HMAC-SHA256 HttpOnly</span>
-        </div>
-        <div class="p-2.5 mt-2 rounded-lg bg-slate-950/90 border border-slate-800/80 text-slate-400">
-          <span class="text-orange-400 font-semibold">Primeiro Acesso:</span> usuário padrão <code class="font-mono-code text-slate-200">admin</code> / senha inicial <code class="font-mono-code text-slate-200">Venosan@2026</code> (altere no botão <em>Segurança</em> após entrar).
+        <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-1">
+          <div><span class="text-teal-300 font-semibold">Admin Total:</span> <code class="font-mono-code text-slate-200">admin</code> / <code class="font-mono-code text-slate-200">Venosan@2026</code></div>
+          <div><span class="text-sky-300 font-semibold">TV Sala NOC (Leitura):</span> <code class="font-mono-code text-slate-200">firebird-ro</code> / <code class="font-mono-code text-slate-200">VenosanRO@2026</code></div>
         </div>
       </div>
 
@@ -125,10 +130,15 @@
   </main>
 
   <footer class="relative z-10 py-4 text-center text-xs text-slate-500">
-    InfraMGNT Server • Execução isolada para Container Proxmox (LXC / Docker)
+    Venosan Brasil • Firebird Command Center v2.0 • HTTPS / TLS Ativo
   </footer>
 
   <script>
+    function fillProfile(user, pass) {
+      document.getElementById("username").value = user;
+      document.getElementById("password").value = pass;
+    }
+
     function togglePass() {
       const input = document.getElementById("password");
       const btn = document.getElementById("toggle-pass-btn");
@@ -166,19 +176,18 @@
           errText.textContent = data.detail || "Falha na autenticação.";
           errBox.classList.remove("hidden");
           btn.disabled = false;
-          btn.innerHTML = `<span>Acessar Painel InfraMGNT</span>`;
+          btn.innerHTML = `<span>Entrar no Firebird Command Center</span>`;
           return;
         }
 
         window.location.href = "/";
       } catch (err) {
-        errText.textContent = "Erro de conexão com o servidor InfraMGNT.";
+        errText.textContent = "Erro de conexão com o Firebird Command Center.";
         errBox.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = `<span>Acessar Painel InfraMGNT</span>`;
+        btn.innerHTML = `<span>Entrar no Firebird Command Center</span>`;
       }
     }
   </script>
 </body>
 </html>
-

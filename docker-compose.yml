@@ -3,21 +3,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: inframgnt:latest
-    container_name: inframgnt-server
+    image: firebird-command-center:latest
+    container_name: firebird-command-center
     restart: unless-stopped
     ports:
+      - "${INFRAMGNT_HTTPS_PORT:-8443}:8443"
       - "${INFRAMGNT_PORT:-8000}:8000"
     environment:
       - TZ=${TZ:-America/Sao_Paulo}
       - INFRAMGNT_ADMIN_USER=${INFRAMGNT_ADMIN_USER:-admin}
       - INFRAMGNT_ADMIN_PASSWORD=${INFRAMGNT_ADMIN_PASSWORD:-Venosan@2026}
-      - INFRAMGNT_SECRET_KEY=${INFRAMGNT_SECRET_KEY:-venosan-inframgnt-proxmox-secret-key-2026}
+      - INFRAMGNT_RO_PASSWORD=${INFRAMGNT_RO_PASSWORD:-VenosanRO@2026}
+      - INFRAMGNT_SECRET_KEY=${INFRAMGNT_SECRET_KEY:-venosan-firebird-command-center-secret-key-2026}
     volumes:
-      # Persistência do banco SQLite, logs de auditoria e par de chaves SSH do container
+      # Persistência do banco SQLite, séries temporais, logs, certificados TLS e chaves SSH
       - ./backend/data:/app/backend/data
-      # (Opcional) Se quiser importar chaves SSH do host Linux com ajuste automático de permissão:
-      # - ~/.ssh:/root/.ssh-host:ro
     logging:
       driver: "json-file"
       options:

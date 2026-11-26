@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Script de Deploy Automatizado em Docker no Linux (Debian / Ubuntu / RHEL / Proxmox)
+# Script de Deploy Automatizado em Docker no Linux — Firebird Command Center (Venosan Brasil)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -10,7 +10,6 @@ if ! command -v docker >/dev/null 2>&1; then
     exit 1
 fi
 
-# Detecta 'docker compose' (plugin v2) ou 'docker-compose' (standalone)
 if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
@@ -21,7 +20,7 @@ else
 fi
 
 echo "=== [2/4] Preparando arquivo .env e diretórios persistentes ==="
-mkdir -p backend/data/logs backend/data/ssh
+mkdir -p backend/data/logs backend/data/ssh backend/data/certs backend/data/offline_lab
 
 if [ ! -f ".env" ]; then
     cp .env.example .env
@@ -32,21 +31,24 @@ else
     echo "ℹ️ Arquivo .env já existente preservado."
 fi
 
-echo "=== [3/4] Construindo e subindo o container InfraMGNT ==="
+echo "=== [3/4] Construindo e subindo o container Firebird Command Center ==="
 $COMPOSE_CMD up -d --build
 
-echo "=== [4/4] Aguardando inicialização e Healthcheck ==="
-sleep 3
+echo "=== [4/4] Aguardando inicialização e Healthcheck HTTPS ==="
+sleep 4
 $COMPOSE_CMD ps
 
+HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost')
 echo ""
 echo "========================================================================"
-echo "✅ Deploy concluído com sucesso!"
-echo "🔗 Painel Web: http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost'):8000/login"
-echo "🔑 Chave pública SSH gerada pelo container (para autorizar nos servidores Firebird):"
+echo "✅ Firebird Command Center (Venosan Brasil) implantado com sucesso!"
+echo "🔒 Acesso HTTPS (Recomendado): https://${HOST_IP}:8443/login"
+echo "🔗 Acesso HTTP Alternativo:    http://${HOST_IP}:8000/login"
+echo "👤 Usuário Admin Total:        admin / Venosan@2026"
+echo "📺 Usuário TV Sala (Leitura):  firebird-ro / VenosanRO@2026"
+echo "------------------------------------------------------------------------"
+echo "🔑 Chave pública SSH do container (para autorizar nos servidores Firebird):"
 if [ -f "backend/data/ssh/id_rsa.pub" ]; then
     cat backend/data/ssh/id_rsa.pub
-else
-    $COMPOSE_CMD logs inframgnt | grep -A 2 "Chave Pública SSH" || true
 fi
 echo "========================================================================"

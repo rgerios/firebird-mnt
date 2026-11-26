@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-# 1. Garante diretórios persistentes de dados, logs e chaves SSH
+# 1. Garante diretórios persistentes de dados, logs, certificados TLS e chaves SSH
 mkdir -p /app/backend/data/logs
 mkdir -p /app/backend/data/ssh
+mkdir -p /app/backend/data/certs
+mkdir -p /app/backend/data/offline_lab
 mkdir -p /root/.ssh
 chmod 700 /root/.ssh
 
@@ -12,13 +14,12 @@ if [ -d "/root/.ssh-host" ] && [ "$(ls -A /root/.ssh-host 2>/dev/null)" ]; then
     cp -f /root/.ssh-host/* /root/.ssh/ 2>/dev/null || true
 fi
 
-# 3. Gera um par de chaves SSH persistente exclusivo do InfraMGNT caso não exista
+# 3. Gera um par de chaves SSH persistente exclusivo do Firebird Command Center caso não exista
 if [ ! -f "/app/backend/data/ssh/id_rsa" ] && [ ! -f "/root/.ssh/id_rsa" ]; then
-    echo "[InfraMGNT] Gerando par de chaves SSH persistente em /app/backend/data/ssh/id_rsa..."
-    ssh-keygen -t rsa -b 4096 -f /app/backend/data/ssh/id_rsa -N "" -C "inframgnt@venosan" >/dev/null 2>&1
+    echo "[Firebird Command Center] Gerando par de chaves SSH persistente em /app/backend/data/ssh/id_rsa..."
+    ssh-keygen -t rsa -b 4096 -f /app/backend/data/ssh/id_rsa -N "" -C "firebird-command-center@venosan" >/dev/null 2>&1
 fi
 
-# Se houver chave persistente em /app/backend/data/ssh, sincroniza com /root/.ssh
 if [ -f "/app/backend/data/ssh/id_rsa" ] && [ ! -f "/root/.ssh/id_rsa" ]; then
     cp /app/backend/data/ssh/id_rsa /root/.ssh/id_rsa
     cp /app/backend/data/ssh/id_rsa.pub /root/.ssh/id_rsa.pub
@@ -30,7 +31,6 @@ chmod 700 /root/.ssh
 find /root/.ssh -type f -exec chmod 600 {} \;
 find /root/.ssh -name "*.pub" -exec chmod 644 {} \;
 
-# Configura SSH client para não travar em prompt interativo de host key na primeira conexão
 if [ ! -f "/root/.ssh/config" ]; then
     cat << 'EOF' > /root/.ssh/config
 Host *
@@ -41,11 +41,24 @@ EOF
     chmod 600 /root/.ssh/config
 fi
 
+# 5. Gera Certificado SSL/TLS Autoassinado (HTTPS) caso não exista em /app/backend/data/certs/
+python3 -c "from app.core.tls import ensure_self_signed_cert; c, k = ensure_self_signed_cert(); print(f'[HTTPS/TLS] Certificado autoassinado pronto: {c}')"
+
 if [ -f "/root/.ssh/id_rsa.pub" ]; then
     echo "========================================================================"
-    echo "[InfraMGNT] Chave Pública SSH do Container (adicione nos servidores A e B):"
+    echo "[Firebird Command Center] Chave Pública SSH do Container:"
     cat /root/.ssh/id_rsa.pub
     echo "========================================================================"
 fi
 
-exec "$@"
+# 6. Inicia listener HTTP secundário na porta 8000 em background e listener HTTPS principal na porta 8443
+echo "[Firebird Command Center] Iniciando HTTPS na porta 8443 e HTTP na porta 8000..."
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips "*" &
+
+exec uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port 8443 \
+    --ssl-keyfile /app/backend/data/certs/key.pem \
+    --ssl-certfile /app/backend/data/certs/cert.pem \
+    --proxy-headers \
+    --forwarded-allow-ips "*"

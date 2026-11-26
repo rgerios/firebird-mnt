@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import router as api_router
 from app.core.database import init_db
 from app.core.security import get_current_user_or_none
+from app.core.tls import ensure_self_signed_cert
 from app.services.scheduler import scheduler_loop
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
@@ -19,6 +20,7 @@ FRONTEND_DIR = ROOT_DIR / "frontend"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    ensure_self_signed_cert()
     sched_task = asyncio.create_task(scheduler_loop())
     try:
         yield
@@ -27,9 +29,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="InfraMGNT - Firebird Backup, Maintenance & Validation Server",
-    description="Painel centralizado e protegido para automação de Backup (gbak -b), Manutenção (gstat/gfix/isql) e Validação Física de bancos Firebird.",
-    version="1.2.0",
+    title="Firebird Command Center — Venosan Brasil",
+    description="Central de Comando Firebird: Telemetria Temporal, Backup Quente (gbak -b -g), Validação Física (gfix) e Laboratório Offline.",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -43,11 +45,13 @@ app.add_middleware(
 
 app.include_router(api_router)
 
-# Mount frontend static assets (/css, /js)
+# Mount frontend static assets (/css, /js, /assets)
 if (FRONTEND_DIR / "css").is_dir():
     app.mount("/css", StaticFiles(directory=str(FRONTEND_DIR / "css")), name="css")
 if (FRONTEND_DIR / "js").is_dir():
     app.mount("/js", StaticFiles(directory=str(FRONTEND_DIR / "js")), name="js")
+if (FRONTEND_DIR / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
 
 @app.get("/login")

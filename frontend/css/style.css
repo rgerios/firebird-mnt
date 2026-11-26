@@ -1,74 +1,111 @@
 :root {
-  --bg-dark: #0d1322;
-  --panel-dark: #131c31;
-  --border-pastel: #263452;
+  --venosan-teal: #00a896;
+  --venosan-teal-dark: #00796b;
+  --venosan-mint: #a7f3d0;
+  --bg-dark: #09131c;
+  --panel-dark: #0f1e2e;
   --pastel-mint: #a7f3d0;
   --pastel-sky: #bae6fd;
   --pastel-lavender: #ddd6fe;
-  --pastel-peach: #fed7aa;
   --hot-amber: #f97316;
   --hot-crimson: #ef4444;
 }
 
 body {
-  background: radial-gradient(circle at 15% 0%, #152238 0%, #0b101d 60%, #080c16 100%);
+  background: radial-gradient(circle at 12% 0%, #0d2b36 0%, #091521 55%, #060d14 100%);
   color: #f1f5f9;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Subtle Firebird Phoenix Emblem Watermark in the Background */
+body::before {
+  content: "";
+  position: fixed;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 680px;
+  height: 680px;
+  background-image: url('/assets/firebird-logo.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.055;
+  pointer-events: none;
+  z-index: 0;
+  filter: drop-shadow(0 0 80px rgba(249, 115, 22, 0.35));
+}
+
+header, main, footer {
+  position: relative;
+  z-index: 10;
 }
 
 .font-mono-code {
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-/* Pastel Management Surfaces vs Warm Critical Cards */
+/* Venosan & Pastel Management Surfaces */
 .pastel-panel {
-  background: linear-gradient(180deg, rgba(22, 32, 56, 0.85) 0%, rgba(15, 23, 42, 0.92) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow: 0 10px 30px -10px rgba(2, 6, 23, 0.65);
+  background: linear-gradient(180deg, rgba(16, 33, 49, 0.86) 0%, rgba(11, 22, 34, 0.92) 100%);
+  border: 1px solid rgba(0, 168, 150, 0.22);
+  box-shadow: 0 12px 32px -10px rgba(2, 8, 18, 0.72);
+  backdrop-filter: blur(10px);
 }
 
 .pastel-card-safe {
-  background: linear-gradient(145deg, rgba(167, 243, 208, 0.06) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1px solid rgba(167, 243, 208, 0.25);
+  background: linear-gradient(145deg, rgba(0, 168, 150, 0.11) 0%, rgba(11, 23, 36, 0.9) 100%);
+  border: 1px solid rgba(167, 243, 208, 0.28);
 }
 .pastel-card-safe:hover {
-  border-color: rgba(167, 243, 208, 0.55);
+  border-color: rgba(167, 243, 208, 0.6);
 }
 
 .pastel-card-manage {
-  background: linear-gradient(145deg, rgba(186, 230, 253, 0.06) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1px solid rgba(186, 230, 253, 0.25);
+  background: linear-gradient(145deg, rgba(186, 230, 253, 0.08) 0%, rgba(11, 23, 36, 0.9) 100%);
+  border: 1px solid rgba(186, 230, 253, 0.26);
 }
 .pastel-card-manage:hover {
-  border-color: rgba(186, 230, 253, 0.55);
+  border-color: rgba(186, 230, 253, 0.6);
 }
 
 .pastel-card-lavender {
-  background: linear-gradient(145deg, rgba(221, 214, 254, 0.06) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1px solid rgba(221, 214, 254, 0.25);
+  background: linear-gradient(145deg, rgba(221, 214, 254, 0.08) 0%, rgba(11, 23, 36, 0.9) 100%);
+  border: 1px solid rgba(221, 214, 254, 0.26);
 }
 .pastel-card-lavender:hover {
-  border-color: rgba(221, 214, 254, 0.55);
+  border-color: rgba(221, 214, 254, 0.6);
 }
 
 /* Warm / Hot Zones for Activities with I/O Impact or Downtime Risk */
 .warm-card-io {
-  background: linear-gradient(145deg, rgba(251, 146, 60, 0.11) 0%, rgba(15, 23, 42, 0.92) 100%);
-  border: 1px solid rgba(249, 115, 22, 0.42);
+  background: linear-gradient(145deg, rgba(251, 146, 60, 0.12) 0%, rgba(15, 23, 38, 0.92) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.45);
 }
 .warm-card-io:hover {
-  border-color: rgba(249, 115, 22, 0.75);
-  box-shadow: 0 0 20px -5px rgba(249, 115, 22, 0.25);
+  border-color: rgba(249, 115, 22, 0.8);
+  box-shadow: 0 0 22px -5px rgba(249, 115, 22, 0.28);
 }
 
 .hot-card-critical {
-  background: linear-gradient(145deg, rgba(239, 68, 68, 0.15) 0%, rgba(30, 14, 24, 0.95) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.55);
-  box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.08);
+  background: linear-gradient(145deg, rgba(239, 68, 68, 0.16) 0%, rgba(28, 12, 20, 0.95) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.1);
 }
 .hot-card-critical:hover {
   border-color: #f87171;
-  box-shadow: 0 0 24px -4px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 26px -4px rgba(239, 68, 68, 0.4);
+}
+
+/* TV Wallboard Mode (firebird-ro) */
+body.tv-noc-mode .admin-only-section {
+  display: none !important;
+}
+
+body.tv-noc-mode .ro-hide-btn {
+  display: none !important;
 }
 
 /* Custom Scrollbar */
@@ -77,18 +114,18 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #09131c;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #1e3a4c;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #00a896;
 }
 
 .terminal-window {
-  background: radial-gradient(circle at top right, #131c31 0%, #070b14 100%);
+  background: radial-gradient(circle at top right, #102131 0%, #060c13 100%);
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 12px 32px -10px rgba(0, 0, 0, 0.75);
 }
 
@@ -104,15 +141,15 @@ body {
 @keyframes pulse-ring {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0.7);
+    box-shadow: 0 0 0 0 rgba(0, 168, 150, 0.75);
   }
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(110, 231, 183, 0);
+    box-shadow: 0 0 0 7px rgba(0, 168, 150, 0);
   }
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+    box-shadow: 0 0 0 0 rgba(0, 168, 150, 0);
   }
 }
 
@@ -121,13 +158,13 @@ body {
 }
 
 .job-tab-active-pastel {
-  background: linear-gradient(135deg, rgba(186, 230, 253, 0.18), rgba(167, 243, 208, 0.08)) !important;
-  border-color: #7dd3fc !important;
+  background: linear-gradient(135deg, rgba(0, 168, 150, 0.22), rgba(186, 230, 253, 0.08)) !important;
+  border-color: #2dd4bf !important;
   color: #fff !important;
 }
 
 .job-tab-active-warm {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.22), rgba(239, 68, 68, 0.10)) !important;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.24), rgba(239, 68, 68, 0.12)) !important;
   border-color: #fb923c !important;
   color: #fff !important;
 }

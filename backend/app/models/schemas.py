@@ -160,7 +160,7 @@ class UserCreateRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=40)
     full_name: str = Field(..., min_length=2, max_length=80)
     password: str = Field(..., min_length=6)
-    role: Literal["admin", "operator"] = "operator"
+    role: Literal["admin", "operator", "readonly"] = "readonly"
 
 
 class OfflineAnalyzeRequest(BaseModel):

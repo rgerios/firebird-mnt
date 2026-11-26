@@ -125,7 +125,21 @@ def require_auth(request: Request) -> Dict[str, Any]:
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Não autenticado. Faça login para acessar o InfraMGNT.",
+            detail="Não autenticado. Faça login no Firebird Command Center.",
+        )
+    return user
+
+
+def require_write_access(request: Request) -> Dict[str, Any]:
+    """
+    Blocks read-only users (such as `firebird-ro` used for the TV/NOC wallboard)
+    from executing any state-modifying or job-triggering operations.
+    """
+    user = require_auth(request)
+    if user.get("role") == "readonly":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso Somente Leitura (firebird-ro / Modo TV NOC): Esta conta é exclusiva para visualização de gráficos e telemetria.",
         )
     return user
 

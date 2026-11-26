@@ -3,70 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InfraMGNT — Central de Comando Firebird, Telemetria & Otimização</title>
+  <title>Firebird Command Center — Venosan Brasil • Telemetria & Operações</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
 </head>
-<body class="min-h-screen antialiased selection:bg-teal-400 selection:text-slate-950">
+<body class="min-h-screen antialiased selection:bg-[#00a896] selection:text-white">
 
-  <!-- Top Navigation Header -->
-  <header class="sticky top-0 z-30 border-b border-slate-800/80 bg-[#0b1120]/90 backdrop-blur-md">
-    <div class="max-w-[1480px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+  <!-- Top Navigation Header (Venosan + Firebird Command Center) -->
+  <header class="sticky top-0 z-30 border-b border-teal-500/25 bg-[#07111a]/90 backdrop-blur-md">
+    <div class="max-w-[1520px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3.5">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-300 via-sky-300 to-indigo-400 flex items-center justify-center shadow-lg shadow-sky-400/15 border border-white/20">
-          <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-          </svg>
-        </div>
+        <img src="/assets/venosan-logo.svg" alt="Venosan Brasil" class="h-10 w-auto hidden sm:block" />
+        <div class="h-7 w-[1px] bg-slate-700 hidden sm:block"></div>
+        <img src="/assets/firebird-logo.png" alt="Firebird" class="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
         <div>
           <div class="flex items-center gap-2.5">
-            <h1 class="text-lg font-extrabold tracking-tight text-white">InfraMGNT</h1>
-            <span class="text-[11px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-teal-300/15 text-teal-200 border border-teal-300/30 font-semibold">
-              Central de Comando Firebird
+            <h1 class="text-lg font-extrabold tracking-tight text-white">Firebird Command Center</h1>
+            <span id="role-badge-header" class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-[#00a896]/20 text-teal-200 border border-[#00a896]/40 font-bold">
+              VENOSAN OPS
             </span>
-            <span class="hidden md:inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-slate-800/90 text-slate-300 border border-slate-700">
-              <span class="w-2 h-2 rounded-full bg-teal-300"></span> Pastel = Gestão Segura
-              <span class="w-2 h-2 rounded-full bg-rose-500 ml-1.5"></span> Quente = Crítico / Parada
+            <span id="tv-mode-banner" class="hidden items-center gap-1.5 text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-sky-400/20 text-sky-200 border border-sky-400/40 font-bold animate-pulse">
+              📺 MODO TV SALA NOC • AUTO-REFRESH 10s
             </span>
           </div>
-          <p class="text-xs text-slate-400">Monitoramento <code class="text-teal-200">Firebird + rfunc.so</code>, Telemetria RAM, Backup Quente (<code class="text-amber-300">gbak -b -g</code>) & Laboratório Offline</p>
+          <p class="text-xs text-slate-300/80">Telemetria Temporal, Saúde <code class="text-teal-200">Firebird + rfunc.so</code>, Backup Quente (<code class="text-amber-300">gbak -b -g</code>) & Laboratório Offline</p>
         </div>
       </div>
 
       <div class="flex items-center gap-2.5">
+        <!-- Digital Wallboard Clock -->
+        <div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/90 border border-teal-500/25 font-mono-code text-xs text-teal-200">
+          <span class="w-2 h-2 rounded-full bg-[#00a896] pulse-green"></span>
+          <span id="tv-clock">--:--:--</span>
+        </div>
+
         <!-- WebSocket Connection Pill -->
         <div id="ws-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-medium text-teal-100">
           <span id="ws-dot" class="w-2.5 h-2.5 rounded-full bg-amber-300"></span>
-          <span id="ws-text">Conectando Stream...</span>
+          <span id="ws-text">Conectando...</span>
         </div>
 
-        <button onclick="checkAllHosts()" id="btn-check-all" class="px-3.5 py-2 rounded-lg bg-sky-300/15 hover:bg-sky-300/25 text-sky-100 border border-sky-300/30 text-xs font-semibold flex items-center gap-2 transition">
-          <svg class="w-4 h-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          Ping & Saúde SSH
+        <!-- Toggle TV / NOC Wallboard Mode -->
+        <button onclick="toggleTvNocMode()" id="btn-tv-mode" class="px-3 py-2 rounded-xl bg-sky-400/15 hover:bg-sky-400/25 text-sky-100 border border-sky-300/30 text-xs font-semibold flex items-center gap-1.5 transition" title="Alternar Modo Tela Cheia para TV da Sala">
+          <span>📺 Modo TV NOC</span>
         </button>
 
-        <button onclick="quickTriggerFullPipeline()" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-600/25 flex items-center gap-1.5 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          Pipeline 1-Clique
+        <button onclick="checkAllHosts()" id="btn-check-all" class="px-3 py-2 rounded-xl bg-teal-400/15 hover:bg-teal-400/25 text-teal-100 border border-teal-300/30 text-xs font-semibold flex items-center gap-1.5 transition">
+          <span>Ping SSH</span>
+        </button>
+
+        <button onclick="quickTriggerFullPipeline()" class="ro-hide-btn px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-600/25 flex items-center gap-1.5 transition">
+          <span>⚡ Pipeline 1-Clique</span>
         </button>
 
         <!-- Authenticated User & Security Controls -->
         <div class="flex items-center gap-1.5 pl-2 border-l border-slate-800">
-          <button onclick="openSecurityModal()" title="Alterar Senha e Gerenciar Operadores" class="px-3 py-2 rounded-lg bg-violet-300/15 hover:bg-violet-300/25 text-violet-100 border border-violet-300/30 text-xs font-medium flex items-center gap-1.5 transition">
+          <button onclick="openSecurityModal()" id="btn-security-modal" title="Alterar Senha e Gerenciar Operadores" class="ro-hide-btn px-3 py-2 rounded-xl bg-violet-300/15 hover:bg-violet-300/25 text-violet-100 border border-violet-300/30 text-xs font-medium flex items-center gap-1.5 transition">
             <svg class="w-4 h-4 text-violet-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <span id="nav-username" class="font-mono-code">admin</span>
           </button>
-          <button onclick="logoutUser()" title="Encerrar Sessão" class="px-3 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs font-semibold transition">
+          <span id="ro-user-pill" class="hidden px-3 py-2 rounded-xl bg-sky-400/15 text-sky-200 border border-sky-400/30 text-xs font-mono-code font-bold">
+            👁️ firebird-ro
+          </span>
+          <button onclick="logoutUser()" title="Encerrar Sessão" class="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs font-semibold transition">
             Sair
           </button>
         </div>
@@ -75,9 +80,9 @@
   </header>
 
   <!-- Main Content Container -->
-  <main class="max-w-[1480px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+  <main class="max-w-[1520px] mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-    <!-- Top KPI Summary Row (Soft Pastel Cards) -->
+    <!-- Top KPI Summary Row (Venosan Pastel Cards) -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="pastel-card-safe rounded-2xl p-4 flex items-center justify-between">
         <div>
@@ -85,7 +90,7 @@
           <p id="stat-hosts" class="text-2xl font-extrabold text-white mt-1">-- / --</p>
           <p class="text-xs text-teal-300 mt-1" id="stat-hosts-sub">Checando conectividade SSH...</p>
         </div>
-        <div class="w-11 h-11 rounded-xl bg-teal-300/15 border border-teal-300/30 flex items-center justify-center text-teal-200">
+        <div class="w-11 h-11 rounded-xl bg-[#00a896]/20 border border-teal-300/30 flex items-center justify-center text-teal-200">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
           </svg>
@@ -137,14 +142,14 @@
       <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-base font-bold text-white flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-teal-300"></span>
-            1. Servidores Firebird Conectados (Hosts SSH)
+            <span class="w-2.5 h-2.5 rounded-full bg-[#00a896]"></span>
+            1. Servidores Firebird Monitorados (Hosts SSH)
           </h2>
           <p class="text-xs text-slate-300/80 mt-0.5">
-            Clique em <strong>Telemetria & Gráficos</strong> em qualquer servidor para carregar o consumo de memória do Firebird, status do <code class="text-teal-200">rfunc.so</code> e saúde de transações nos gráficos abaixo.
+            Clique em <strong>Telemetria & Gráficos</strong> em qualquer máquina para focar os gráficos temporais e o status do <code class="text-teal-200">Firebird + rfunc.so</code> nela.
           </p>
         </div>
-        <button onclick="openHostModal()" class="px-3.5 py-2 rounded-xl bg-teal-300/15 hover:bg-teal-300/25 text-teal-100 border border-teal-300/30 text-xs font-semibold flex items-center gap-1.5 transition">
+        <button onclick="openHostModal()" class="ro-hide-btn px-3.5 py-2 rounded-xl bg-[#00a896]/20 hover:bg-[#00a896]/35 text-teal-100 border border-teal-300/30 text-xs font-semibold flex items-center gap-1.5 transition">
           <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
@@ -157,48 +162,93 @@
       </div>
     </section>
 
-    <!-- 2. Central de Telemetria Visual: Gráficos de Memória, Saúde do Banco & Serviços (Firebird + rfunc) -->
-    <section class="pastel-panel rounded-2xl p-5">
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+    <!-- 2. Central de Telemetria Visual & Gráficos Temporais (NOC TV Wallboard Core) -->
+    <section class="pastel-panel rounded-2xl p-5 space-y-5">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2.5">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-sky-300"></span>
-              2. Central de Telemetria do Servidor & Saúde do Banco (Tempo Real)
+              2. Central de Telemetria & Comportamento Temporal do Ambiente
             </h2>
-            <span id="telemetry-host-badge" class="text-[11px] font-mono-code px-2.5 py-0.5 rounded-full bg-sky-300/15 text-sky-200 border border-sky-300/30 font-semibold">
+            <span id="telemetry-host-badge" class="text-[11px] font-mono-code px-2.5 py-0.5 rounded-full bg-[#00a896]/20 text-teal-200 border border-[#00a896]/40 font-semibold">
               Servidor A - Produção
             </span>
           </div>
           <p class="text-xs text-slate-300/80 mt-0.5">
-            Monitoramento dedicado de memória RAM alocada pelo motor Firebird, sessões ativas na porta <code class="text-sky-200">3050</code>, biblioteca UDF <code class="text-teal-200">rfunc.so</code> e distribuição de páginas/transações.
+            Acompanhamento contínuo no decorrer do tempo: Memória RSS do Firebird, Carga de CPU, Sessões ERP na porta <code class="text-sky-200">3050</code>, I/O de Disco, Gap de Transações e <code class="text-teal-200">rfunc.so</code>.
           </p>
         </div>
 
         <div class="flex items-center gap-2.5">
-          <label class="text-xs text-slate-300">Inspecionar Máquina:</label>
-          <select id="telemetry-host-select" onchange="loadHostTelemetry(this.value)" class="rounded-xl bg-slate-900/90 border border-sky-300/30 px-3 py-1.5 text-xs text-white focus:outline-none"></select>
-          <button onclick="loadHostTelemetry()" class="px-3 py-1.5 rounded-xl bg-sky-300/15 hover:bg-sky-300/25 text-sky-100 border border-sky-300/30 text-xs font-semibold transition">
-            Atualizar Telemetria
+          <label class="text-xs text-slate-300">Máquina em Foco:</label>
+          <select id="telemetry-host-select" onchange="loadHostTelemetry(this.value)" class="rounded-xl bg-slate-900/90 border border-teal-400/30 px-3 py-1.5 text-xs text-white focus:outline-none"></select>
+          <button onclick="loadHostTelemetry()" class="px-3 py-1.5 rounded-xl bg-[#00a896]/20 hover:bg-[#00a896]/35 text-teal-100 border border-teal-300/30 text-xs font-semibold transition">
+            Atualizar Agora
           </button>
         </div>
       </div>
 
-      <!-- Top Row inside Telemetry: 3 Visual Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-5">
+      <!-- ROW A: 3 Temporal Time-Series Charts (Behavior over Time) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Temporal Chart 1: Firebird Memory (MB) & CPU (%) over Time -->
+        <div class="pastel-card-safe rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-teal-200">Evolução Temporal: Memória Banco & CPU</h3>
+              <p class="text-[11px] text-slate-400">Consumo RSS Firebird (MB) e Carga de CPU (%) no tempo</p>
+            </div>
+            <span id="ts-ram-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-teal-400/20 text-teal-100 border border-teal-300/30">-- MB</span>
+          </div>
+          <div class="relative h-48">
+            <canvas id="chartTimeRamCpu"></canvas>
+          </div>
+        </div>
+
+        <!-- Temporal Chart 2: Active Connections (3050) & Disk I/O (MB/s) over Time -->
+        <div class="pastel-card-manage rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-sky-200">Evolução Temporal: Sessões 3050 & I/O Disco</h3>
+              <p class="text-[11px] text-slate-400">Clientes ERP Conectados vs Taxa de Transferência (MB/s)</p>
+            </div>
+            <span id="ts-conn-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-sky-400/20 text-sky-100 border border-sky-300/30">-- sessões</span>
+          </div>
+          <div class="relative h-48">
+            <canvas id="chartTimeConnsIo"></canvas>
+          </div>
+        </div>
+
+        <!-- Temporal Chart 3: Transaction Gap (Next - OAT) & SSH Latency over Time -->
+        <div class="pastel-card-lavender rounded-2xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-violet-200">Evolução Temporal: Gap OAT/OIT & Latência</h3>
+              <p class="text-[11px] text-slate-400">Comportamento das Transações Firebird no decorrer do dia</p>
+            </div>
+            <span id="ts-gap-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-violet-400/20 text-violet-100 border border-violet-300/30">Gap: --</span>
+          </div>
+          <div class="relative h-48">
+            <canvas id="chartTimeTxGap"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW B: 3 Structural Distribution Charts (RAM Breakdown, Table Garbage, Server Saturation) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
-        <!-- Chart 1: Consumo de Memória RAM (Firebird RSS vs Cache SO vs Livre) -->
+        <!-- Chart 4: Consumo de Memória RAM (Firebird RSS vs Cache SO vs Livre) -->
         <div class="lg:col-span-4 pastel-card-manage rounded-2xl p-4 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-2">
             <div>
-              <h3 class="text-xs font-bold uppercase tracking-wider text-sky-200">Consumo de Memória RAM</h3>
-              <p class="text-[11px] text-slate-400">Alocação do Processo Firebird vs Sistema</p>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-sky-200">Distribuição da Memória RAM</h3>
+              <p class="text-[11px] text-slate-400">Processo Firebird vs Page Cache Linux vs Livre</p>
             </div>
             <span id="chart-ram-badge" class="font-mono-code text-xs font-bold px-2.5 py-0.5 rounded-lg bg-sky-300/20 text-sky-100 border border-sky-300/30">
-              -- MB
+              -- GB
             </span>
           </div>
-          <div class="relative h-48 flex items-center justify-center">
+          <div class="relative h-44 flex items-center justify-center">
             <canvas id="chartMemory"></canvas>
           </div>
           <div id="chart-ram-footer" class="mt-2 pt-2 border-t border-slate-800/80 grid grid-cols-3 gap-2 text-center text-[11px] font-mono-code">
@@ -208,7 +258,7 @@
           </div>
         </div>
 
-        <!-- Chart 2: Volume de Registros vs Lixo Acumulado (Backversions) -->
+        <!-- Chart 5: Volume de Registros vs Lixo Acumulado (Backversions) -->
         <div class="lg:col-span-5 pastel-card-lavender rounded-2xl p-4 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-2">
             <div>
@@ -219,7 +269,7 @@
               Gap OAT: --
             </span>
           </div>
-          <div class="relative h-48">
+          <div class="relative h-44">
             <canvas id="chartTables"></canvas>
           </div>
           <div class="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono-code text-slate-300">
@@ -230,7 +280,7 @@
           </div>
         </div>
 
-        <!-- Chart 3: Saúde de Recursos da Máquina (CPU, Disco, Conexões 3050, Cache) -->
+        <!-- Chart 6: Saúde de Recursos da Máquina -->
         <div class="lg:col-span-3 pastel-card-safe rounded-2xl p-4 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-2">
             <div>
@@ -241,7 +291,7 @@
               6.84 GB
             </span>
           </div>
-          <div class="relative h-48">
+          <div class="relative h-44">
             <canvas id="chartServerHealth"></canvas>
           </div>
           <div class="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono-code text-slate-300">
@@ -252,13 +302,13 @@
 
       </div>
 
-      <!-- Bottom Row inside Telemetry: Status of Firebird, rfunc UDF & Correlated Services -->
+      <!-- ROW C: Status of Firebird, rfunc UDF & Correlated Services -->
       <div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-teal-200 mb-2.5 flex items-center gap-2">
           <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
-          Status dos Serviços Críticos do Banco & Bibliotecas Correlatas (Firebird, rfunc.so, fbguard, GDS_DB 3050, fstrim)
+          Status dos Serviços Críticos do Banco & Bibliotecas Correlatas (Firebird Engine, UDF rfunc.so, fbguard, GDS_DB 3050, fstrim)
         </h3>
         <div id="telemetry-services-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <!-- Populated dynamically via app.js -->
@@ -266,8 +316,8 @@
       </div>
     </section>
 
-    <!-- 3. Catálogo de Jobs de Backup/Restore (Left) + Console Web em Tempo Real (Right) -->
-    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- 3. Catálogo de Jobs de Backup/Restore (Left) + Console Web em Tempo Real (Right) [HIDDEN IN TV NOC MODE] -->
+    <section class="admin-only-section grid grid-cols-1 lg:grid-cols-12 gap-6">
       
       <!-- 3.1 Catálogo de Jobs (5 cols on lg) -->
       <div class="lg:col-span-5 pastel-panel rounded-2xl p-5 flex flex-col justify-between">
@@ -282,7 +332,6 @@
             </p>
           </div>
 
-          <!-- Job Selector Tabs -->
           <div class="grid grid-cols-2 gap-2.5 mb-5">
             <button onclick="selectJobTab('pipeline')" id="tab-btn-pipeline" class="job-tab-active-warm text-left p-2.5 rounded-xl border border-slate-700/80 bg-slate-900/70 hover:border-amber-400/60 transition">
               <div class="flex items-center justify-between">
@@ -386,11 +435,7 @@
             </div>
 
             <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xs shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Disparar Pipeline Completo (Backup A &rarr; Restore & Validação B)
+              <span>▶ Disparar Pipeline Completo (Backup A &rarr; Restore & Validação B)</span>
             </button>
           </form>
 
@@ -517,7 +562,7 @@
               <span class="w-3 h-3 rounded-full bg-teal-300/80"></span>
             </div>
             <span class="text-xs font-mono-code font-semibold text-teal-100 ml-1">
-              root@inframgnt:~# tail -f /var/log/firebird_mission_control.stream
+              root@firebird-command-center:~# tail -f /var/log/firebird_ops.stream
             </span>
           </div>
 
@@ -554,8 +599,8 @@
 
     </section>
 
-    <!-- 4. Catálogo de Rotinas de Manutenção Preventiva & Otimização Linux (Pastel vs Quente/Crítico) -->
-    <section class="pastel-panel rounded-2xl p-5">
+    <!-- 4. Catálogo de Rotinas de Manutenção Preventiva & Otimização Linux [HIDDEN IN TV NOC MODE] -->
+    <section class="admin-only-section pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
         <div>
           <div class="flex items-center gap-2.5">
@@ -587,7 +632,6 @@
         </div>
       </div>
 
-      <!-- 5 Maintenance Cards Grid: 3 Pastel Safe Cards + 1 Warm I/O Card + 1 Hot Critical Downtime Card -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
 
         <!-- Card 1 (PASTEL MINT - 100% SAFE): job_check_health -->
@@ -716,8 +760,8 @@
       </div>
     </section>
 
-    <!-- 5. Laboratório de Análise & Otimização Offline (.fdb / .fbk) -->
-    <section class="pastel-panel rounded-2xl p-5">
+    <!-- 5. Laboratório de Análise & Otimização Offline (.fdb / .fbk) [HIDDEN IN TV NOC MODE] -->
+    <section class="admin-only-section pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
         <div>
           <div class="flex items-center gap-2.5">
@@ -735,7 +779,6 @@
         </div>
       </div>
 
-      <!-- Import / Upload Bar -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
         <div class="lg:col-span-5 pastel-card-manage rounded-2xl p-4 flex flex-col justify-between gap-3">
           <div>
@@ -815,7 +858,7 @@
               type="button"
               onclick="runOfflineXRay()"
               id="btn-run-xray"
-              class="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-300 to-sky-300 hover:from-teal-200 hover:to-sky-200 text-slate-950 text-xs font-extrabold shadow-lg shadow-sky-400/15 flex items-center gap-2 transition"
+              class="px-5 py-2 rounded-xl bg-gradient-to-r from-[#00a896] to-teal-400 hover:from-teal-400 hover:to-teal-300 text-slate-950 text-xs font-extrabold shadow-lg shadow-teal-400/15 flex items-center gap-2 transition"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -826,10 +869,7 @@
         </div>
       </div>
 
-      <!-- Diagnostic Report Output Container -->
-      <div id="offline-report-container" class="hidden space-y-5 pt-4 border-t border-slate-800">
-        <!-- Populated dynamically by renderOfflineReport() in app.js -->
-      </div>
+      <div id="offline-report-container" class="hidden space-y-5 pt-4 border-t border-slate-800"></div>
     </section>
 
     <!-- 6. Histórico e Relatórios de Execução -->
@@ -837,7 +877,7 @@
       <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-base font-bold text-white flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-teal-300"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#00a896]"></span>
             6. Histórico de Execuções & Auditoria
           </h2>
           <p class="text-xs text-slate-300/80 mt-0.5">
@@ -965,7 +1005,7 @@
           <button type="button" onclick="closeHostModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
             Cancelar
           </button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-teal-400 hover:bg-teal-300 text-slate-950 text-xs font-bold">
+          <button type="submit" class="px-4 py-2 rounded-lg bg-[#00a896] hover:bg-teal-400 text-white hover:text-slate-950 text-xs font-bold">
             Salvar Servidor
           </button>
         </div>
@@ -984,9 +1024,7 @@
         <button onclick="closeInspectModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
       </div>
 
-      <div id="inspect-modal-body" class="flex-1 overflow-y-auto space-y-4 mt-4 text-xs">
-        <!-- Populated dynamically via app.js -->
-      </div>
+      <div id="inspect-modal-body" class="flex-1 overflow-y-auto space-y-4 mt-4 text-xs"></div>
 
       <div class="flex items-center justify-end gap-2 pt-3 mt-4 border-t border-slate-800">
         <button onclick="closeInspectModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
@@ -1023,8 +1061,8 @@
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
         <div>
-          <h3 class="text-base font-bold text-white">Segurança de Acesso & Operadores (Proxmox Guard)</h3>
-          <p class="text-xs text-slate-400 mt-0.5">Altere sua senha de administrador ou cadastre operadores autorizados.</p>
+          <h3 class="text-base font-bold text-white">Segurança de Acesso & Perfis (admin vs firebird-ro)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Gerencie contas de Administrador e contas Somente Leitura (Modo TV NOC).</p>
         </div>
         <button onclick="closeSecurityModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
       </div>
@@ -1040,42 +1078,43 @@
             <label class="block text-xs text-slate-300 mb-1">Nova Senha (mín. 6 caracteres)</label>
             <input type="password" id="sec-new-pass" required minlength="6" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-white" />
           </div>
-          <button type="submit" class="w-full py-2 px-3 rounded-lg bg-teal-400 hover:bg-teal-300 text-slate-950 text-xs font-bold transition">
+          <button type="submit" class="w-full py-2 px-3 rounded-lg bg-[#00a896] hover:bg-teal-400 text-white hover:text-slate-950 text-xs font-bold transition">
             Atualizar Senha
           </button>
         </form>
 
         <form onsubmit="submitNewUser(event)" class="space-y-3 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
-          <h4 class="text-xs font-bold uppercase tracking-wider text-sky-200">Novo Operador Autorizado</h4>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-sky-200">Novo Usuário / Tela TV</h4>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-xs text-slate-300 mb-1">Login</label>
-              <input type="text" id="sec-new-username" required placeholder="operador1" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
+              <input type="text" id="sec-new-username" required placeholder="firebird-ro" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
             </div>
             <div>
-              <label class="block text-xs text-slate-300 mb-1">Perfil</label>
+              <label class="block text-xs text-slate-300 mb-1">Tipo de Acesso</label>
               <select id="sec-new-role" class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white">
+                <option value="readonly">Somente Leitura (TV)</option>
                 <option value="operator">Operador</option>
-                <option value="admin">Administrador</option>
+                <option value="admin">Administrador Total</option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs text-slate-300 mb-1">Nome Completo / Setor</label>
-            <input type="text" id="sec-new-fullname" required placeholder="Equipe Infra Venosan" class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
+            <label class="block text-xs text-slate-300 mb-1">Nome / Identificação</label>
+            <input type="text" id="sec-new-fullname" required placeholder="TV Sala NOC Venosan" class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
           </div>
           <div>
             <label class="block text-xs text-slate-300 mb-1">Senha Inicial</label>
             <input type="password" id="sec-new-userpass" required minlength="6" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
           </div>
           <button type="submit" class="w-full py-2 px-3 rounded-lg bg-sky-300 hover:bg-sky-200 text-slate-950 text-xs font-bold transition">
-            Adicionar Usuário
+            Criar Usuário
           </button>
         </form>
       </div>
 
       <div class="mt-5">
-        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Usuários com Acesso ao Container</h4>
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Usuários Cadastrados no Firebird Command Center</h4>
         <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-950">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
