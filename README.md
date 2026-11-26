@@ -1,9 +1,9 @@
 # Firebird Command Center (`firebird-mnt`) — Venosan Brasil
 
 <p align="center">
-  <img src="frontend/assets/venosan-logo.svg" height="52" alt="Venosan Brasil" />
+  <img src="frontend/assets/venosan-logo-card.png" height="72" alt="Venosan • Lohmann & Rauscher" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="frontend/assets/firebird-logo.png" height="54" alt="Firebird Database" />
+  <img src="frontend/assets/firebird-logo.png" height="64" alt="Firebird Database" />
 </p>
 
 <p align="center">

@@ -37,22 +37,31 @@
     <path d="M110 250 C60 210 75 135 135 110 C155 100 130 70 105 80 C95 60 130 40 165 55 C190 65 215 60 225 55 C215 80 185 80 175 75 C215 110 195 160 175 185 C160 205 185 225 225 205 C200 255 140 270 110 250 Z" fill="url(#fbFlame)"/>
   </g>
 
-  <!-- Top Navbar (Venosan + Firebird Command Center) -->
+  <!-- Top Navbar (Venosan + L&R Official Logo Pill + Firebird Command Center) -->
   <rect x="0" y="0" width="1200" height="64" rx="16" fill="#07111a" opacity="0.95"/>
-  <!-- Venosan Logo Pill -->
-  <rect x="22" y="14" width="36" height="36" rx="9" fill="url(#venoTeal)"/>
-  <path d="M30 25 L39 40 L48 21" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="66" y="32" font-family="Inter, sans-serif" font-size="16" font-weight="900" letter-spacing="1.2" fill="#ffffff">VENOSAN</text>
-  <text x="66" y="45" font-family="Inter, sans-serif" font-size="8" font-weight="700" letter-spacing="2" fill="#5eead4">SWISS QUALITY • BRASIL</text>
-  <line x1="176" y1="16" x2="176" y2="48" stroke="#334155" stroke-width="1"/>
+  <!-- Venosan + L&R White Badge Pill -->
+  <rect x="20" y="11" width="188" height="42" rx="10" fill="#ffffff"/>
+  <!-- Red Heron Bird Emblem -->
+  <ellipse cx="42" cy="32" rx="15" ry="13" fill="none" stroke="#e31e24" stroke-width="1.3"/>
+  <path d="M35 37 L43 23 L48 31 L56 32 Z" fill="#e31e24"/>
+  <!-- VENOSAN Red Text -->
+  <text x="61" y="31" font-family="Inter, Arial, sans-serif" font-size="13.5" font-weight="900" fill="#e31e24">VENOSAN</text>
+  <text x="134" y="24" font-family="Inter, Arial, sans-serif" font-size="7" font-weight="700" fill="#e31e24">®</text>
+  <text x="62" y="42" font-family="monospace" font-size="7" fill="#334155">Meias Compressivas</text>
+  <line x1="146" y1="16" x2="146" y2="47" stroke="#cbd5e1" stroke-width="1"/>
+  <!-- L&R Logo -->
+  <text x="152" y="34" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="900" fill="#e31e24">L</text>
+  <circle cx="165" cy="27" r="5" fill="#009640"/>
+  <text x="171" y="34" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="900" fill="#e31e24">R</text>
+  <text x="151" y="43" font-family="Inter, Arial, sans-serif" font-size="5" font-weight="700" fill="#009640">Lohmann &amp; Rauscher</text>
 
   <!-- Firebird Icon & Title -->
-  <circle cx="200" cy="32" r="15" fill="none" stroke="url(#fbFlame)" stroke-width="3"/>
-  <circle cx="200" cy="32" r="8" fill="url(#fbFlame)"/>
-  <text x="224" y="30" font-family="Inter, sans-serif" font-size="17" font-weight="800" fill="#ffffff">Firebird Command Center</text>
-  <rect x="444" y="15" width="215" height="20" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1"/>
-  <text x="551" y="29" font-family="monospace" font-size="9.5" font-weight="700" fill="#bae6fd" text-anchor="middle">📺 MODO TV SALA NOC • AUTO-REFRESH 10s</text>
-  <text x="224" y="48" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Telemetria Temporal, Saúde Firebird + rfunc.so, Backup Quente (gbak -b -g) &amp; HTTPS/TLS</text>
+  <circle cx="230" cy="32" r="15" fill="none" stroke="url(#fbFlame)" stroke-width="3"/>
+  <circle cx="230" cy="32" r="8" fill="url(#fbFlame)"/>
+  <text x="254" y="30" font-family="Inter, sans-serif" font-size="17" font-weight="800" fill="#ffffff">Firebird Command Center</text>
+  <rect x="474" y="15" width="215" height="20" rx="10" fill="#0c4a6e" stroke="#38bdf8" stroke-width="1"/>
+  <text x="581" y="29" font-family="monospace" font-size="9.5" font-weight="700" fill="#bae6fd" text-anchor="middle">📺 MODO TV SALA NOC • AUTO-REFRESH 10s</text>
+  <text x="254" y="48" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Telemetria Temporal, Saúde Firebird + rfunc.so, Backup Quente (gbak -b -g) &amp; HTTPS/TLS</text>
 
   <!-- Navbar Right Controls -->
   <rect x="756" y="18" width="96" height="28" rx="10" fill="#091521" stroke="#00a896"/>
