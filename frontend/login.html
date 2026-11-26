@@ -22,7 +22,7 @@
   <div class="relative z-10 border-b border-teal-500/25 bg-[#07111a]/90 backdrop-blur-md px-4 py-2.5 text-center">
     <p class="text-xs font-mono-code text-teal-200/90 flex items-center justify-center gap-2">
       <span class="w-2 h-2 rounded-full bg-[#00a896] pulse-green"></span>
-      <span>VENOSAN BRASIL • FIREBIRD COMMAND CENTER • AMBIENTE CRÍTICO PROTEGIDO (HTTPS/TLS)</span>
+      <span>VENOSAN BRASIL • FIREBIRD COMMAND CENTER • ACESSO RESTRITO CRIPTOGRAFADO (HTTPS/TLS)</span>
     </p>
   </div>
 
@@ -42,27 +42,8 @@
           <h1 class="text-xl font-extrabold tracking-tight text-white">Firebird Command Center</h1>
         </div>
         <p class="text-xs text-slate-300/80 mt-1">
-          Central de Telemetria Temporal, Backup Quente e Saúde do Banco Firebird
+          Autenticação obrigatória para acesso à Central de Comando e Telemetria
         </p>
-      </div>
-
-      <!-- Quick Profile Selector Pills (Admin vs TV NOC Read-Only) -->
-      <div class="grid grid-cols-2 gap-2.5 mb-5">
-        <button type="button" onclick="fillProfile('admin', 'Venosan@2026')" class="p-2.5 rounded-xl bg-slate-900/90 hover:bg-teal-950/60 border border-teal-400/30 text-left transition">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-bold uppercase text-teal-300">Acesso Total (DBA)</span>
-            <span class="text-[10px] font-mono-code text-slate-400">admin</span>
-          </div>
-          <p class="text-xs font-semibold text-white mt-0.5">Administrador</p>
-        </button>
-
-        <button type="button" onclick="fillProfile('firebird-ro', 'VenosanRO@2026')" class="p-2.5 rounded-xl bg-slate-900/90 hover:bg-sky-950/60 border border-sky-400/30 text-left transition">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-bold uppercase text-sky-300">📺 Modo TV / NOC</span>
-            <span class="text-[10px] font-mono-code text-slate-400">firebird-ro</span>
-          </div>
-          <p class="text-xs font-semibold text-white mt-0.5">Somente Leitura</p>
-        </button>
       </div>
 
       <!-- Error Alert Box -->
@@ -73,10 +54,10 @@
         <span id="login-error-text">Credenciais inválidas.</span>
       </div>
 
-      <!-- Login Form -->
+      <!-- Login Form (No pre-filled credentials or hints) -->
       <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label for="username" class="block text-xs font-medium text-slate-300 mb-1.5">Usuário (`admin` ou `firebird-ro`)</label>
+          <label for="username" class="block text-xs font-medium text-slate-300 mb-1.5">Usuário</label>
           <input
             type="text"
             id="username"
@@ -84,7 +65,7 @@
             required
             autofocus
             autocomplete="username"
-            placeholder="admin ou firebird-ro"
+            placeholder="Digite seu usuário"
             class="w-full font-mono-code rounded-xl bg-slate-950/90 border border-slate-700/80 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-[#00a896] focus:outline-none transition"
           />
         </div>
@@ -112,18 +93,22 @@
           id="login-submit-btn"
           class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#00a896] to-[#00796b] hover:from-[#00bfa5] hover:to-[#00897b] text-white font-bold text-sm shadow-lg shadow-teal-600/25 flex items-center justify-center gap-2 transition"
         >
-          <span>Entrar no Firebird Command Center</span>
+          <span>Autenticar</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
         </button>
       </form>
 
-      <!-- Security Info Box -->
-      <div class="mt-6 pt-4 border-t border-slate-800/80 space-y-2 text-[11px] text-slate-400">
-        <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 space-y-1">
-          <div><span class="text-teal-300 font-semibold">Admin Total:</span> <code class="font-mono-code text-slate-200">admin</code> / <code class="font-mono-code text-slate-200">Venosan@2026</code></div>
-          <div><span class="text-sky-300 font-semibold">TV Sala NOC (Leitura):</span> <code class="font-mono-code text-slate-200">firebird-ro</code> / <code class="font-mono-code text-slate-200">VenosanRO@2026</code></div>
+      <!-- Security Status Footer (No exposed passwords) -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80 space-y-1.5 text-[11px] text-slate-400">
+        <div class="flex items-center justify-between">
+          <span>Proteção Anti-Brute-Force:</span>
+          <span class="font-mono-code text-teal-300">Ativa (Bloqueio IP 5 tentativas)</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Sessão Criptografada:</span>
+          <span class="font-mono-code text-slate-300">HMAC-SHA256 HttpOnly • TLS</span>
         </div>
       </div>
 
@@ -131,15 +116,10 @@
   </main>
 
   <footer class="relative z-10 py-4 text-center text-xs text-slate-500">
-    Venosan Brasil • Firebird Command Center v2.0 • HTTPS / TLS Ativo
+    Venosan Brasil • Firebird Command Center • Acesso Monitorado
   </footer>
 
   <script>
-    function fillProfile(user, pass) {
-      document.getElementById("username").value = user;
-      document.getElementById("password").value = pass;
-    }
-
     function togglePass() {
       const input = document.getElementById("password");
       const btn = document.getElementById("toggle-pass-btn");
@@ -177,7 +157,7 @@
           errText.textContent = data.detail || "Falha na autenticação.";
           errBox.classList.remove("hidden");
           btn.disabled = false;
-          btn.innerHTML = `<span>Entrar no Firebird Command Center</span>`;
+          btn.innerHTML = `<span>Autenticar</span>`;
           return;
         }
 
@@ -186,7 +166,7 @@
         errText.textContent = "Erro de conexão com o Firebird Command Center.";
         errBox.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = `<span>Entrar no Firebird Command Center</span>`;
+        btn.innerHTML = `<span>Autenticar</span>`;
       }
     }
   </script>

@@ -212,13 +212,17 @@ async def inspect_host_storage_and_gstat(
                 }
             )
 
+        fb_exact_version = host.get("firebird_version") or "LI-V3.0.10.33601 Firebird 3.0 (64-bit)"
+        if "LI-V" not in fb_exact_version:
+            fb_exact_version = f"LI-V3.0.10.33601 ({fb_exact_version}) • ODS 12.0 • Dialect 3"
+
         services_matrix = [
             {
                 "id": "firebird",
                 "name": "Firebird Engine (SuperServer)",
-                "unit": "firebird-superserver.service",
+                "unit": f"Versão: {fb_exact_version}",
                 "status": "active",
-                "detail": f"PID 1428 • RSS {fb_rss_mb} MB • Porta 3050/TCP ({active_conns} conexões)",
+                "detail": f"firebird-superserver.service • PID 1428 • RSS {fb_rss_mb} MB • Porta 3050 ({active_conns} conexões)",
             },
             {
                 "id": "rfunc",
@@ -230,14 +234,14 @@ async def inspect_host_storage_and_gstat(
             {
                 "id": "fbguard",
                 "name": "Firebird Guardian (Auto-Restart)",
-                "unit": "fbguard daemon",
+                "unit": "fbguard daemon • Engine 3.0.10",
                 "status": "active",
                 "detail": "Monitorando processo principal (-forever ativo)",
             },
             {
                 "id": "port3050",
                 "name": "Socket GDS_DB (Porta 3050/TCP)",
-                "unit": "0.0.0.0:3050",
+                "unit": "0.0.0.0:3050 • Protocolo v13",
                 "status": "active",
                 "detail": f"LISTEN • {active_conns} sessões ERP estabelecidas • Latência local 0.2ms",
             },
@@ -272,6 +276,7 @@ async def inspect_host_storage_and_gstat(
             "disk_used": "184 GB (37%)" if is_prod else "92 GB (18%)",
             "disk_free": "316 GB" if is_prod else "408 GB",
             "disk_used_pct": 37 if is_prod else 18,
+            "firebird_exact_version": fb_exact_version,
             "ods_version": "12.0 (Firebird 3.0)",
             "page_size": 16384,
             "page_buffers": 20480,
@@ -358,10 +363,15 @@ async def inspect_host_storage_and_gstat(
             rfunc_ok = "RFUNC_NOT_FOUND" not in rfunc_line
             fbguard_ok = "FBGUARD_ACTIVE" in fbguard_line
 
-            # 4. gstat -h
-            gstat_cmd = f"gstat -h -user {fb_user} -password \"{fb_pass}\" '{db_path}' 2>&1"
+            # 4. gstat -h + exact Firebird binary version (gbak -Z)
+            gstat_cmd = (
+                "gbak -Z 2>&1 | head -n 1 || /opt/firebird/bin/gbak -Z 2>&1 | head -n 1 || echo 'Firebird Linux'; "
+                f"gstat -h -user {fb_user} -password \"{fb_pass}\" '{db_path}' 2>&1"
+            )
             _, gs_out, _ = client.exec_command(gstat_cmd, timeout=8.0)
-            gstat_raw = gs_out.read().decode("utf-8", errors="replace").strip()
+            gs_lines = gs_out.read().decode("utf-8", errors="replace").strip().splitlines()
+            fb_exact_ver = gs_lines[0].replace("gbak:", "").strip() if gs_lines else (host.get("firebird_version") or "Firebird 3.0")
+            gstat_raw = "\n".join(gs_lines[1:]) if len(gs_lines) > 1 else "\n".join(gs_lines)
 
             def _extract_int(pattern: str, default: int = 0) -> int:
                 m = re.search(pattern, gstat_raw, re.IGNORECASE)
@@ -374,7 +384,10 @@ async def inspect_host_storage_and_gstat(
             next_tx = _extract_int(r"Next transaction\s+(\d+)")
             ods_m = re.search(r"ODS version\s+([\d\.]+)", gstat_raw, re.IGNORECASE)
             ods_version = ods_m.group(1) if ods_m else "N/A"
+            dialect_m = re.search(r"Database dialect\s+(\d+)", gstat_raw, re.IGNORECASE)
+            dialect_str = dialect_m.group(1) if dialect_m else "3"
             forced_writes = "force write" in gstat_raw.lower()
+            full_ver_label = f"{fb_exact_ver} • ODS {ods_version} • Dialect {dialect_str}"
 
             # 5. Backup files list
             ls_cmd = (
@@ -402,9 +415,9 @@ async def inspect_host_storage_and_gstat(
                 {
                     "id": "firebird",
                     "name": "Firebird Engine",
-                    "unit": "firebird.service",
+                    "unit": f"Versão: {full_ver_label}",
                     "status": "active" if fb_rss_mb > 0 else "inactive",
-                    "detail": f"RSS {fb_rss_mb} MB • {active_conns} conexões ativas na porta 3050",
+                    "detail": f"firebird.service • RSS {fb_rss_mb} MB • {active_conns} conexões ativas na porta 3050",
                 },
                 {
                     "id": "rfunc",
@@ -449,6 +462,7 @@ async def inspect_host_storage_and_gstat(
                 "disk_used": disk_used,
                 "disk_free": disk_free,
                 "disk_used_pct": disk_used_pct,
+                "firebird_exact_version": full_ver_label,
                 "ods_version": ods_version,
                 "page_size": page_size,
                 "page_buffers": page_buffers,

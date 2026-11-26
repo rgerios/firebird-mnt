@@ -152,6 +152,29 @@ def init_db() -> None:
             """
         )
 
+        # Daily 24h Database Intelligence Reports table (HTML + Structured Metrics)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                host_id INTEGER NOT NULL,
+                host_name TEXT NOT NULL,
+                report_date TEXT NOT NULL,
+                period_label TEXT NOT NULL,
+                firebird_version TEXT NOT NULL,
+                records_added_24h INTEGER NOT NULL,
+                records_removed_24h INTEGER NOT NULL,
+                net_growth_24h INTEGER NOT NULL,
+                size_delta_mb_24h REAL NOT NULL,
+                top_growing_table TEXT NOT NULL,
+                top_growing_count INTEGER NOT NULL,
+                summary_json TEXT NOT NULL,
+                html_file_path TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
         # Seed default Admin User if empty
         cursor.execute("SELECT COUNT(*) as count FROM users")
         u_row = cursor.fetchone()

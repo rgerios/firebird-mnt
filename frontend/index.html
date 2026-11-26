@@ -191,46 +191,83 @@
         </div>
       </div>
 
-      <!-- ROW A: 3 Temporal Time-Series Charts (Behavior over Time) -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Toolbar: Time Range Selector (30min .. 24hr) & Chart Resize Controls -->
+      <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/85 border border-teal-500/25">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-teal-200 mr-1.5 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Janela Temporal:
+          </span>
+          <button type="button" onclick="setTelemetryTimeRange('30m')" id="tr-btn-30m" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code transition">30min</button>
+          <button type="button" onclick="setTelemetryTimeRange('1h')" id="tr-btn-1h" class="time-range-btn-active px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code transition">1hr</button>
+          <button type="button" onclick="setTelemetryTimeRange('3h')" id="tr-btn-3h" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code transition">3hr</button>
+          <button type="button" onclick="setTelemetryTimeRange('6h')" id="tr-btn-6h" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code transition">6hr</button>
+          <button type="button" onclick="setTelemetryTimeRange('12h')" id="tr-btn-12h" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code transition">12hr</button>
+          <button type="button" onclick="setTelemetryTimeRange('24h')" id="tr-btn-24h" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono-code transition">24hr</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[11px] font-semibold text-slate-400 mr-1">Dimensionamento (Resize):</span>
+          <button type="button" onclick="resizeTemporalCharts(192)" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] transition">Compacto</button>
+          <button type="button" onclick="resizeTemporalCharts(280)" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] transition">Médio</button>
+          <button type="button" onclick="resizeTemporalCharts(380)" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] transition">Grande</button>
+          <button type="button" onclick="toggleTemporalLayoutCols()" id="btn-toggle-cols" class="px-2.5 py-1 rounded-lg bg-sky-400/15 hover:bg-sky-400/25 text-sky-200 border border-sky-400/30 text-[11px] font-semibold transition" title="Alternar entre 3 colunas lado a lado ou largura total">
+            ⤢ Largura Total (1 Col)
+          </button>
+        </div>
+      </div>
+
+      <!-- ROW A: 3 Temporal Time-Series Charts (Behavior over Time - Resizable) -->
+      <div id="temporal-charts-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Temporal Chart 1: Firebird Memory (MB) & CPU (%) over Time -->
-        <div class="pastel-card-safe rounded-2xl p-4 flex flex-col justify-between">
+        <div id="card-ts-1" class="pastel-card-safe rounded-2xl p-4 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-2">
             <div>
               <h3 class="text-xs font-bold uppercase tracking-wider text-teal-200">Evolução Temporal: Memória Banco & CPU</h3>
-              <p class="text-[11px] text-slate-400">Consumo RSS Firebird (MB) e Carga de CPU (%) no tempo</p>
+              <p class="text-[11px] text-slate-400">Consumo RSS Firebird (MB) e Carga de CPU (%) • Arraste a borda inferior p/ resize</p>
             </div>
-            <span id="ts-ram-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-teal-400/20 text-teal-100 border border-teal-300/30">-- MB</span>
+            <div class="flex items-center gap-1.5">
+              <span id="ts-ram-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-teal-400/20 text-teal-100 border border-teal-300/30">-- MB</span>
+              <button type="button" onclick="toggleSingleChartExpand('card-ts-1')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-teal-500/30 text-teal-200 text-xs" title="Expandir/Recolher este gráfico">⤢</button>
+            </div>
           </div>
-          <div class="relative h-48">
+          <div class="TemporalChartBox resizable-chart-box relative h-48">
             <canvas id="chartTimeRamCpu"></canvas>
           </div>
         </div>
 
         <!-- Temporal Chart 2: Active Connections (3050) & Disk I/O (MB/s) over Time -->
-        <div class="pastel-card-manage rounded-2xl p-4 flex flex-col justify-between">
+        <div id="card-ts-2" class="pastel-card-manage rounded-2xl p-4 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-2">
             <div>
               <h3 class="text-xs font-bold uppercase tracking-wider text-sky-200">Evolução Temporal: Sessões 3050 & I/O Disco</h3>
               <p class="text-[11px] text-slate-400">Clientes ERP Conectados vs Taxa de Transferência (MB/s)</p>
             </div>
-            <span id="ts-conn-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-sky-400/20 text-sky-100 border border-sky-300/30">-- sessões</span>
+            <div class="flex items-center gap-1.5">
+              <span id="ts-conn-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-sky-400/20 text-sky-100 border border-sky-300/30">-- sessões</span>
+              <button type="button" onclick="toggleSingleChartExpand('card-ts-2')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-sky-500/30 text-sky-200 text-xs" title="Expandir/Recolher este gráfico">⤢</button>
+            </div>
           </div>
-          <div class="relative h-48">
+          <div class="TemporalChartBox resizable-chart-box relative h-48">
             <canvas id="chartTimeConnsIo"></canvas>
           </div>
         </div>
 
         <!-- Temporal Chart 3: Transaction Gap (Next - OAT) & SSH Latency over Time -->
-        <div class="pastel-card-lavender rounded-2xl p-4 flex flex-col justify-between">
+        <div id="card-ts-3" class="pastel-card-lavender rounded-2xl p-4 flex flex-col justify-between">
           <div class="flex items-center justify-between mb-2">
             <div>
               <h3 class="text-xs font-bold uppercase tracking-wider text-violet-200">Evolução Temporal: Gap OAT/OIT & Latência</h3>
-              <p class="text-[11px] text-slate-400">Comportamento das Transações Firebird no decorrer do dia</p>
+              <p class="text-[11px] text-slate-400">Comportamento das Transações Firebird no decorrer do tempo</p>
             </div>
-            <span id="ts-gap-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-violet-400/20 text-violet-100 border border-violet-300/30">Gap: --</span>
+            <div class="flex items-center gap-1.5">
+              <span id="ts-gap-now" class="font-mono-code text-xs font-bold px-2 py-0.5 rounded-lg bg-violet-400/20 text-violet-100 border border-violet-300/30">Gap: --</span>
+              <button type="button" onclick="toggleSingleChartExpand('card-ts-3')" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-violet-500/30 text-violet-200 text-xs" title="Expandir/Recolher este gráfico">⤢</button>
+            </div>
           </div>
-          <div class="relative h-48">
+          <div class="TemporalChartBox resizable-chart-box relative h-48">
             <canvas id="chartTimeTxGap"></canvas>
           </div>
         </div>
@@ -304,16 +341,120 @@
 
       </div>
 
-      <!-- ROW C: Status of Firebird, rfunc UDF & Correlated Services -->
+      <!-- ROW C: Status of Firebird, Exact Version, rfunc UDF & Correlated Services -->
       <div>
-        <h3 class="text-xs font-bold uppercase tracking-wider text-teal-200 mb-2.5 flex items-center gap-2">
-          <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          Status dos Serviços Críticos do Banco & Bibliotecas Correlatas (Firebird Engine, UDF rfunc.so, fbguard, GDS_DB 3050, fstrim)
-        </h3>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-teal-200 flex items-center gap-2">
+            <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Status dos Serviços Críticos do Banco & Bibliotecas Correlatas (Firebird Engine, UDF rfunc.so, fbguard, GDS_DB 3050, fstrim)
+          </h3>
+          <div class="flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/35">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-200">Versão Exata do Banco:</span>
+            <code id="telemetry-fb-exact-version" class="text-xs font-mono-code font-bold text-white">LI-V3.0.10.33601 Firebird 3.0 (64-bit) • ODS 12.0</code>
+          </div>
+        </div>
         <div id="telemetry-services-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <!-- Populated dynamically via app.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 2.5 Módulo de Relatório Diário (24h) de Inteligência do Banco (HTML & Movimentação de Tabelas) -->
+    <section class="pastel-panel rounded-2xl p-5 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              Relatório Diário (24h) — Movimentação de Registros, Crescimento & Saúde em HTML
+            </h2>
+            <span class="text-[11px] font-mono-code px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-200 border border-amber-400/30 font-semibold">
+              Geração Automática a cada 24h
+            </span>
+          </div>
+          <p class="text-xs text-slate-300/80 mt-0.5">
+            Balanço consolidado das últimas 24 horas: quantos registros foram adicionados, quantos foram removidos, qual tabela mais cresceu e exportação do laudo executivo em <strong>.HTML</strong>.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="generateDailyReportNow()" id="btn-gen-daily-report" class="ro-hide-btn px-3.5 py-2 rounded-xl bg-[#00a896]/25 hover:bg-[#00a896] text-teal-100 hover:text-white border border-teal-300/40 text-xs font-bold flex items-center gap-1.5 transition">
+            <span>⚡ Gerar Relatório 24h Agora</span>
+          </button>
+          <a id="btn-open-latest-html" href="/api/reports/1/html" target="_blank" class="px-3.5 py-2 rounded-xl bg-sky-400/20 hover:bg-sky-400 text-sky-100 hover:text-slate-950 border border-sky-300/40 text-xs font-bold flex items-center gap-1.5 transition">
+            <span>🌐 Abrir Relatório HTML</span>
+          </a>
+          <a id="btn-dl-latest-html" href="/api/reports/1/download" download class="px-3.5 py-2 rounded-xl bg-violet-400/20 hover:bg-violet-400 text-violet-100 hover:text-slate-950 border border-violet-300/40 text-xs font-bold flex items-center gap-1.5 transition">
+            <span>⬇️ Baixar .HTML</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 4 Daily Report Highlight KPIs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="pastel-card-safe rounded-2xl p-4">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-teal-200">Itens Adicionados (+24h)</span>
+          <p id="rep-added-24h" class="text-2xl font-extrabold font-mono-code text-emerald-300 mt-1">+--</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Novos registros inseridos no período</p>
+        </div>
+
+        <div class="pastel-card-lavender rounded-2xl p-4">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-rose-200">Itens Removidos / Limpos (-24h)</span>
+          <p id="rep-removed-24h" class="text-2xl font-extrabold font-mono-code text-rose-300 mt-1">---</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Registros excluídos e lixo reciclado</p>
+        </div>
+
+        <div class="pastel-card-manage rounded-2xl p-4">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-sky-200">Saldo Líquido & Expansão .fdb</span>
+          <p id="rep-net-24h" class="text-2xl font-extrabold font-mono-code text-sky-200 mt-1">+--</p>
+          <p id="rep-size-delta-24h" class="text-[11px] text-sky-300 mt-0.5">Crescimento físico: +-- MB</p>
+        </div>
+
+        <div class="warm-card-io rounded-2xl p-4">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-amber-200">🔥 Tabela que Mais Cresceu (24h)</span>
+          <p id="rep-top-table" class="text-base font-extrabold font-mono-code text-white mt-1.5 truncate">--</p>
+          <p id="rep-top-table-sub" class="text-xs font-bold text-amber-300 mt-0.5">+-- novos registros</p>
+        </div>
+      </div>
+
+      <!-- Detailed 24h Table Growth Matrix -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-8 rounded-xl border border-slate-800 bg-slate-950/90 overflow-hidden">
+          <div class="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+            <span class="text-xs font-bold text-white">Movimentação por Tabela nas Últimas 24 Horas (Adicionados vs Removidos)</span>
+            <span id="rep-period-badge" class="text-[11px] font-mono-code text-teal-200">--</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="text-[11px] text-slate-400 border-b border-slate-800 bg-slate-950">
+                  <th class="py-2.5 px-3">Tabela</th>
+                  <th class="py-2.5 px-3 text-right">Total Atual</th>
+                  <th class="py-2.5 px-3 text-right">Adicionados (+24h)</th>
+                  <th class="py-2.5 px-3 text-right">Removidos (-24h)</th>
+                  <th class="py-2.5 px-3 text-right">Saldo Líquido</th>
+                  <th class="py-2.5 px-3 text-right">Expansão Disco</th>
+                </tr>
+              </thead>
+              <tbody id="rep-tables-tbody" class="divide-y divide-slate-800/70"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- List of Generated HTML Daily Reports -->
+        <div class="lg:col-span-4 rounded-xl border border-slate-800 bg-slate-950/90 overflow-hidden flex flex-col justify-between">
+          <div>
+            <div class="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+              <span class="text-xs font-bold text-white">Arquivos HTML Diários (24h)</span>
+              <span class="text-[10px] font-mono-code text-slate-400">Histórico</span>
+            </div>
+            <div id="rep-history-list" class="divide-y divide-slate-800/70 max-h-60 overflow-y-auto text-xs"></div>
+          </div>
+          <div class="p-2.5 bg-slate-900/60 border-t border-slate-800 text-[11px] text-slate-400 text-center">
+            Os relatórios HTML são gerados automaticamente a cada 24h e salvos em <code class="text-slate-300">data/reports/</code>
+          </div>
         </div>
       </div>
     </section>

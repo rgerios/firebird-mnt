@@ -16,6 +16,8 @@ let memoryChartInstance = null;
 let tablesChartInstance = null;
 let serverHealthChartInstance = null;
 let currentTelemetryHostId = null;
+let currentTelemetryRangeKey = "1h";
+let isTemporalFullWidthCols = false;
 
 // Intercept 401 responses globally and redirect to /login
 const _origFetch = window.fetch;
@@ -222,7 +224,7 @@ async function deleteUserAccount(userId) {
 }
 
 async function refreshAllData() {
-  await Promise.all([loadStats(), loadHosts(), loadExecutions()]);
+  await Promise.all([loadStats(), loadHosts(), loadExecutions(), loadDailyReports()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -436,13 +438,20 @@ async function loadHostTelemetry(hostId = null) {
   if (!currentTelemetryHostId) return;
 
   try {
-    const res = await fetch(`/api/hosts/${currentTelemetryHostId}/timeseries?limit=24`);
+    const res = await fetch(
+      `/api/hosts/${currentTelemetryHostId}/timeseries?range_key=${encodeURIComponent(currentTelemetryRangeKey)}&limit=24`
+    );
     if (!res.ok) return;
     const payload = await res.json();
     const info = payload.latest;
     const series = payload.series || [];
 
     document.getElementById("telemetry-host-badge").textContent = `${info.host_name} (${info.hostname || ""})`;
+    const exactVerEl = document.getElementById("telemetry-fb-exact-version");
+    if (exactVerEl && info.firebird_exact_version) {
+      exactVerEl.textContent = info.firebird_exact_version;
+    }
+
     const mem = info.memory || {
       ram_total_mb: 16384,
       firebird_rss_mb: 2048,
@@ -492,6 +501,162 @@ async function loadHostTelemetry(hostId = null) {
     renderTelemetryServices(info.services || []);
   } catch (err) {
     console.error("Erro ao carregar telemetria temporal:", err);
+  }
+}
+
+async function setTelemetryTimeRange(rangeKey) {
+  currentTelemetryRangeKey = rangeKey;
+  ["30m", "1h", "3h", "6h", "12h", "24h"].forEach((rk) => {
+    const btn = document.getElementById(`tr-btn-${rk}`);
+    if (btn) {
+      if (rk === rangeKey) {
+        btn.classList.add("time-range-btn-active");
+      } else {
+        btn.classList.remove("time-range-btn-active");
+      }
+    }
+  });
+  await loadHostTelemetry();
+}
+
+function resizeTemporalCharts(heightPx) {
+  document.querySelectorAll(".TemporalChartBox").forEach((box) => {
+    box.style.height = `${heightPx}px`;
+  });
+  [timeRamCpuChart, timeConnsIoChart, timeTxGapChart].forEach((ch) => {
+    if (ch) ch.resize();
+  });
+}
+
+function toggleTemporalLayoutCols() {
+  isTemporalFullWidthCols = !isTemporalFullWidthCols;
+  const grid = document.getElementById("temporal-charts-grid");
+  const btn = document.getElementById("btn-toggle-cols");
+  if (!grid) return;
+
+  if (isTemporalFullWidthCols) {
+    grid.className = "grid grid-cols-1 gap-4";
+    if (btn) btn.textContent = "⊞ 3 Colunas (Lado a Lado)";
+    resizeTemporalCharts(280);
+  } else {
+    grid.className = "grid grid-cols-1 lg:grid-cols-3 gap-4";
+    ["card-ts-1", "card-ts-2", "card-ts-3"].forEach((id) => {
+      document.getElementById(id)?.classList.remove("lg:col-span-3");
+    });
+    if (btn) btn.textContent = "⤢ Largura Total (1 Col)";
+    resizeTemporalCharts(192);
+  }
+}
+
+function toggleSingleChartExpand(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  const box = card.querySelector(".TemporalChartBox");
+  const expanded = card.classList.toggle("lg:col-span-3");
+  if (box) {
+    box.style.height = expanded ? "340px" : "192px";
+  }
+  [timeRamCpuChart, timeConnsIoChart, timeTxGapChart].forEach((ch) => {
+    if (ch) ch.resize();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 2.5 Daily 24h Database Intelligence Reports (HTML & Table Movement)
+// ---------------------------------------------------------------------------
+
+async function loadDailyReports() {
+  try {
+    const hostId = currentTelemetryHostId || 1;
+    const res = await fetch(`/api/reports?host_id=${hostId}`);
+    if (!res.ok) return;
+    const reports = await res.json();
+    if (!reports.length) return;
+
+    const latest = reports[0];
+    const sum = latest.summary || {};
+
+    document.getElementById("rep-added-24h").textContent = `+${Number(latest.records_added_24h || 0).toLocaleString("pt-BR")}`;
+    document.getElementById("rep-removed-24h").textContent = `-${Number(latest.records_removed_24h || 0).toLocaleString("pt-BR")}`;
+    document.getElementById("rep-net-24h").textContent = `+${Number(latest.net_growth_24h || 0).toLocaleString("pt-BR")} regs`;
+    document.getElementById("rep-size-delta-24h").textContent = `Expansão física: +${Number(latest.size_delta_mb_24h || 0).toFixed(1)} MB (Base: ${sum.db_size_current || "6.84 GB"})`;
+    document.getElementById("rep-top-table").textContent = latest.top_growing_table || "--";
+    document.getElementById("rep-top-table-sub").textContent = `+${Number(latest.top_growing_count || 0).toLocaleString("pt-BR")} novos registros (+${sum.top_growing_mb || 68.2} MB)`;
+    document.getElementById("rep-period-badge").textContent = latest.period_label || latest.report_date;
+
+    const openBtn = document.getElementById("btn-open-latest-html");
+    const dlBtn = document.getElementById("btn-dl-latest-html");
+    if (openBtn) openBtn.href = `/api/reports/${latest.id}/html`;
+    if (dlBtn) dlBtn.href = `/api/reports/${latest.id}/download`;
+
+    const tbls = sum.tables_breakdown || [];
+    const tbody = document.getElementById("rep-tables-tbody");
+    if (tbody) {
+      tbody.innerHTML = tbls
+        .map((t) => {
+          const isTop = t.table_name === latest.top_growing_table;
+          return `
+            <tr class="${isTop ? "bg-amber-500/10" : "hover:bg-slate-900/60"} transition">
+              <td class="py-2 px-3 font-mono-code font-bold text-white">
+                ${escapeHtml(t.table_name)}
+                ${isTop ? `<span class="ml-1.5 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/25 text-amber-200 border border-amber-400/40">🔥 TOP 24H</span>` : ""}
+              </td>
+              <td class="py-2 px-3 font-mono-code text-slate-300 text-right">${Number(t.total_records).toLocaleString("pt-BR")}</td>
+              <td class="py-2 px-3 font-mono-code font-bold text-emerald-300 text-right">+${Number(t.added_24h).toLocaleString("pt-BR")}</td>
+              <td class="py-2 px-3 font-mono-code font-semibold text-rose-300 text-right">-${Number(t.removed_24h).toLocaleString("pt-BR")}</td>
+              <td class="py-2 px-3 font-mono-code font-bold text-sky-200 text-right">+${Number(t.net_delta_24h).toLocaleString("pt-BR")} (${t.growth_pct}%)</td>
+              <td class="py-2 px-3 font-mono-code text-amber-200 text-right">+${Number(t.delta_mb).toFixed(1)} MB</td>
+            </tr>`;
+        })
+        .join("");
+    }
+
+    const histEl = document.getElementById("rep-history-list");
+    if (histEl) {
+      histEl.innerHTML = reports
+        .map(
+          (r) => `
+          <div class="p-3 flex items-center justify-between gap-2 hover:bg-slate-900/60 transition">
+            <div>
+              <p class="font-semibold text-white text-xs">Relatório #${r.id} • ${escapeHtml(r.report_date)}</p>
+              <p class="text-[11px] font-mono-code text-slate-400">
+                +${Number(r.records_added_24h).toLocaleString("pt-BR")} / -${Number(r.records_removed_24h).toLocaleString("pt-BR")} • Top: ${escapeHtml(r.top_growing_table)}
+              </p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <a href="/api/reports/${r.id}/html" target="_blank" class="px-2 py-1 rounded bg-sky-400/15 hover:bg-sky-400 text-sky-200 hover:text-slate-950 border border-sky-300/30 text-[11px] font-semibold transition">
+                Ver HTML
+              </a>
+              <a href="/api/reports/${r.id}/download" download class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-mono-code transition">
+                .html
+              </a>
+            </div>
+          </div>`
+        )
+        .join("");
+    }
+  } catch (err) {
+    console.error("Erro ao carregar relatórios diários:", err);
+  }
+}
+
+async function generateDailyReportNow() {
+  const btn = document.getElementById("btn-gen-daily-report");
+  if (btn) btn.disabled = true;
+  const hostId = currentTelemetryHostId || 1;
+  appendLocalConsoleLine("Gerando Relatório Diário (24h) de movimentação de registros e saúde do banco em HTML...", "info");
+  try {
+    const res = await fetch(`/api/reports/generate?host_id=${hostId}`, { method: "POST" });
+    if (res.ok) {
+      const rep = await res.json();
+      appendLocalConsoleLine(
+        `[Relatório 24h #${rep.id}] Gerado com sucesso! +${rep.records_added_24h} adicionados, -${rep.records_removed_24h} removidos, Maior crescimento: ${rep.top_growing_table}.`,
+        "success"
+      );
+      await loadDailyReports();
+    }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 

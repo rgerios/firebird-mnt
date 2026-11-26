@@ -17,6 +17,7 @@ backend/data/logs/
 backend/data/ssh/
 backend/data/offline_lab/
 backend/data/certs/
+backend/data/reports/
 
 # OS & Editor files
 .DS_Store

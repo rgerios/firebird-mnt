@@ -157,12 +157,23 @@ def _cron_matches_now(cron_expr: str, dt: datetime) -> bool:
 
 async def scheduler_loop() -> None:
     """
-    Background loop that checks active cron schedules every 60 seconds.
+    Background loop that checks active cron schedules every 60 seconds
+    and generates the automatic 24h Daily HTML Database Intelligence Report.
     """
+    from app.services.daily_report import generate_daily_24h_report, list_daily_reports
+
     last_triggered_minute = ""
+    last_report_day = ""
     while True:
         try:
             now = datetime.now(timezone.utc).astimezone()
+            day_key = now.strftime("%Y-%m-%d")
+            if day_key != last_report_day:
+                existing = list_daily_reports(limit=1)
+                if not existing or not str(existing[0].get("created_at", "")).startswith(day_key):
+                    await generate_daily_24h_report(host_id=1)
+                last_report_day = day_key
+
             minute_key = now.strftime("%Y-%m-%d %H:%M")
             if minute_key != last_triggered_minute:
                 schedules = list_schedules_db()

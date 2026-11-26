@@ -168,3 +168,19 @@ body.tv-noc-mode .ro-hide-btn {
   border-color: #fb923c !important;
   color: #fff !important;
 }
+
+/* Resizable Temporal Chart Container */
+.resizable-chart-box {
+  resize: vertical;
+  overflow: hidden;
+  min-height: 170px;
+  max-height: 680px;
+}
+
+.time-range-btn-active {
+  background-color: #00a896 !important;
+  color: #042f2e !important;
+  font-weight: 800 !important;
+  border-color: #5eead4 !important;
+}
+
