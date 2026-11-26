@@ -1,0 +1,26 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Runtime SQLite DB, execution logs, SSH private keys & uploaded offline DBs
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/logs/
+backend/data/ssh/
+backend/data/offline_lab/
+
+# Environment secrets
+.env
+
+# OS & Editors
+.DS_Store
+.vscode/
+.idea/
+*.log

@@ -1,0 +1,25 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local SQLite database and execution logs (mounted via volume in production)
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/logs/
+backend/data/ssh/
+
+# OS & Editor files
+.DS_Store
+.vscode/
+.idea/
+.git/
+.gitignore
+*.log

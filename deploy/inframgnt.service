@@ -1,0 +1,18 @@
+[Unit]
+Description=InfraMGNT - Firebird Backup, Maintenance & Validation Panel
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/inframgnt/backend
+Environment="INFRAMGNT_SECRET_KEY=troque-esta-chave-secreta-em-producao-proxmox"
+Environment="INFRAMGNT_ADMIN_USER=admin"
+Environment="INFRAMGNT_ADMIN_PASSWORD=Venosan@2026"
+ExecStart=/opt/inframgnt/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

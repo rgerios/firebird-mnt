@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — InfraMGNT • Proteção de Banco Crítico Firebird</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-[#070a12] text-slate-100 antialiased selection:bg-orange-500 selection:text-white relative overflow-hidden">
+
+  <!-- Background Subtle Grid / Glow -->
+  <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
+    <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-orange-600/10 blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 w-[28rem] h-[28rem] rounded-full bg-red-600/10 blur-3xl"></div>
+  </div>
+
+  <!-- Top Security Strip -->
+  <div class="relative z-10 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-4 py-2.5 text-center">
+    <p class="text-xs font-mono-code text-slate-400 flex items-center justify-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-green"></span>
+      <span>AMBIENTE CRÍTICO PROTEGIDO • PROXMOX LXC / FIREBIRD DATABASE OPS</span>
+    </p>
+  </div>
+
+  <!-- Main Login Card -->
+  <main class="relative z-10 flex-1 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl shadow-2xl p-7 backdrop-blur-xl">
+      
+      <!-- Brand Header -->
+      <div class="flex flex-col items-center text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-xl shadow-orange-500/20 border border-orange-400/30 mb-3.5">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl font-bold tracking-tight text-white">InfraMGNT</h1>
+          <span class="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 font-semibold">
+            Venosan Guard
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">
+          Autenticação obrigatória para operação de Backup, Restore e Manutenção do Firebird
+        </p>
+      </div>
+
+      <!-- Error Alert Box -->
+      <div id="login-error" class="hidden mb-4 p-3 rounded-xl bg-rose-950/70 border border-rose-500/40 text-xs text-rose-200 flex items-start gap-2.5">
+        <svg class="w-4 h-4 text-rose-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span id="login-error-text">Credenciais inválidas.</span>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label for="username" class="block text-xs font-medium text-slate-300 mb-1.5">Usuário Operador / Admin</label>
+          <div class="relative">
+            <input
+              type="text"
+              id="username"
+              name="username"
+              required
+              autofocus
+              autocomplete="username"
+              placeholder="admin"
+              class="w-full font-mono-code rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-orange-500 focus:outline-none transition"
+            />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="password" class="block text-xs font-medium text-slate-300">Senha de Acesso</label>
+            <button type="button" onclick="togglePass()" id="toggle-pass-btn" class="text-[11px] text-slate-400 hover:text-orange-400 transition">
+              Mostrar senha
+            </button>
+          </div>
+          <div class="relative">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••••••"
+              class="w-full font-mono-code rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:border-orange-500 focus:outline-none transition"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          id="login-submit-btn"
+          class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-semibold text-sm shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 transition"
+        >
+          <span>Acessar Painel InfraMGNT</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </button>
+      </form>
+
+      <!-- Security Info Box -->
+      <div class="mt-6 pt-4 border-t border-slate-800/80 space-y-2 text-[11px] text-slate-400">
+        <div class="flex items-center justify-between">
+          <span>Proteção Brute-Force:</span>
+          <span class="font-mono-code text-emerald-400">Ativa (Bloqueio IP 5 tentativas)</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Sessão Criptografada:</span>
+          <span class="font-mono-code text-slate-300">HMAC-SHA256 HttpOnly</span>
+        </div>
+        <div class="p-2.5 mt-2 rounded-lg bg-slate-950/90 border border-slate-800/80 text-slate-400">
+          <span class="text-orange-400 font-semibold">Primeiro Acesso:</span> usuário padrão <code class="font-mono-code text-slate-200">admin</code> / senha inicial <code class="font-mono-code text-slate-200">Venosan@2026</code> (altere no botão <em>Segurança</em> após entrar).
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="relative z-10 py-4 text-center text-xs text-slate-500">
+    InfraMGNT Server • Execução isolada para Container Proxmox (LXC / Docker)
+  </footer>
+
+  <script>
+    function togglePass() {
+      const input = document.getElementById("password");
+      const btn = document.getElementById("toggle-pass-btn");
+      if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "Ocultar senha";
+      } else {
+        input.type = "password";
+        btn.textContent = "Mostrar senha";
+      }
+    }
+
+    async function handleLogin(event) {
+      event.preventDefault();
+      const errBox = document.getElementById("login-error");
+      const errText = document.getElementById("login-error-text");
+      const btn = document.getElementById("login-submit-btn");
+
+      errBox.classList.add("hidden");
+      btn.disabled = true;
+      btn.innerHTML = `<span>Autenticando...</span>`;
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          errText.textContent = data.detail || "Falha na autenticação.";
+          errBox.classList.remove("hidden");
+          btn.disabled = false;
+          btn.innerHTML = `<span>Acessar Painel InfraMGNT</span>`;
+          return;
+        }
+
+        window.location.href = "/";
+      } catch (err) {
+        errText.textContent = "Erro de conexão com o servidor InfraMGNT.";
+        errBox.classList.remove("hidden");
+        btn.disabled = false;
+        btn.innerHTML = `<span>Acessar Painel InfraMGNT</span>`;
+      }
+    }
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InfraMGNT — Gestão de Backup, Manutenção & Validação Firebird</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="min-h-screen antialiased selection:bg-orange-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 border-b border-slate-800/90 bg-slate-950/90 backdrop-blur-md">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/20 border border-orange-400/30">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-lg font-bold tracking-tight text-white">InfraMGNT</h1>
+            <span class="text-[11px] font-mono-code uppercase px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 font-semibold">
+              Firebird Ops & Linux Tuning
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Backup Quente (<code class="text-slate-300">gbak -b -g</code>), Validação (<code class="text-slate-300">gfix</code>), Saúde OAT/Sweep (<code class="text-slate-300">gstat -h</code>) & Tuning Linux</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- WebSocket Connection Pill -->
+        <div id="ws-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
+          <span id="ws-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+          <span id="ws-text">Conectando Stream...</span>
+        </div>
+
+        <button onclick="checkAllHosts()" id="btn-check-all" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-2 transition">
+          <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          Testar Servidores
+        </button>
+
+        <button onclick="quickTriggerFullPipeline()" class="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white text-xs font-semibold shadow-lg shadow-orange-600/25 flex items-center gap-2 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Pipeline 1-Clique
+        </button>
+
+        <!-- Authenticated User & Security Controls -->
+        <div class="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+          <button onclick="openSecurityModal()" title="Alterar Senha e Gerenciar Usuários" class="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-medium flex items-center gap-1.5 transition">
+            <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span id="nav-username" class="font-mono-code">admin</span>
+          </button>
+          <button onclick="logoutUser()" title="Encerrar Sessão" class="px-3 py-2 rounded-lg bg-rose-950/50 hover:bg-rose-900/70 text-rose-300 border border-rose-500/30 text-xs font-semibold transition">
+            Sair
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+    <!-- Top KPI Summary Row -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Servidores Monitorados</p>
+          <p id="stat-hosts" class="text-2xl font-bold text-white mt-1">-- / --</p>
+          <p class="text-xs text-emerald-400 mt-1" id="stat-hosts-sub">Checando conectividade SSH...</p>
+        </div>
+        <div class="w-11 h-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Execuções de Jobs</p>
+          <p id="stat-execs" class="text-2xl font-bold text-white mt-1">0</p>
+          <p class="text-xs text-sky-400 mt-1" id="stat-running">Nenhum job em andamento</p>
+        </div>
+        <div class="w-11 h-11 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Taxa de Sucesso</p>
+          <p id="stat-rate" class="text-2xl font-bold text-emerald-400 mt-1">100%</p>
+          <p class="text-xs text-slate-400 mt-1">Backups, Restores & Manutenções</p>
+        </div>
+        <div class="w-11 h-11 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div class="pr-2 overflow-hidden">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Última Rotina Finalizada</p>
+          <p id="stat-last-val" class="text-sm font-semibold text-white mt-1.5 truncate">Aguardando 1ª execução</p>
+          <p id="stat-last-time" class="text-xs text-slate-400 mt-1 truncate">Dispare um Job abaixo</p>
+        </div>
+        <div class="w-11 h-11 shrink-0 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. Painel de Servidores (Hosts) -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+            1. Painel de Servidores Firebird (Hosts Gerenciados)
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Servidores Linux conectados via SSH. Clique em <strong>Inspecionar (gstat -h)</strong> para ver transações OIT/OAT e disco, ou em <strong>Editar</strong> para alternar entre Modo Simulação e SSH Real.
+          </p>
+        </div>
+        <button onclick="openHostModal()" class="px-3.5 py-2 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border border-orange-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Adicionar Servidor
+        </button>
+      </div>
+
+      <div id="hosts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Populated dynamically via app.js -->
+      </div>
+    </section>
+
+    <!-- Middle Grid: 2. Catálogo de Jobs de Backup/Restore (Left) + Console Web em Tempo Real (Right) -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- 2. Catálogo de Jobs de Backup & Validação (5 cols on lg) -->
+      <div class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+        <div>
+          <div class="mb-4">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+              2. Jobs de Backup, Transporte & Homologação
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Rotinas de backup quente em produção, cópia entre máquinas e validação em servidor de testes.
+            </p>
+          </div>
+
+          <!-- Job Selector Tabs -->
+          <div class="grid grid-cols-2 gap-2 mb-5">
+            <button onclick="selectJobTab('pipeline')" id="tab-btn-pipeline" class="job-tab-active text-left p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-orange-400">Job 4 • 1-Clique</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300">Recomendado</span>
+              </div>
+              <p class="text-xs font-semibold text-white mt-1">Pipeline Completo</p>
+              <p class="text-[11px] text-slate-400 truncate">Backup &rarr; Cópia &rarr; Restore &rarr; gfix</p>
+            </button>
+
+            <button onclick="selectJobTab('backup')" id="tab-btn-backup" class="text-left p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-sky-400">Job 1 • Produção</span>
+                <code class="text-[10px] text-slate-400">gbak -b -g</code>
+              </div>
+              <p class="text-xs font-semibold text-white mt-1">Backup Produção</p>
+              <p class="text-[11px] text-slate-400 truncate">Gera .fbk.zst quente sem GC</p>
+            </button>
+
+            <button onclick="selectJobTab('transfer')" id="tab-btn-transfer" class="text-left p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-400">Job 2 • Rede</span>
+                <code class="text-[10px] text-slate-400">rsync / scp</code>
+              </div>
+              <p class="text-xs font-semibold text-white mt-1">Envio p/ Testes</p>
+              <p class="text-[11px] text-slate-400 truncate">Transfere backup A &rarr; B</p>
+            </button>
+
+            <button onclick="selectJobTab('restore')" id="tab-btn-restore" class="text-left p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 transition">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-purple-400">Job 3 • Validação</span>
+                <code class="text-[10px] text-slate-400">gbak -c + gfix</code>
+              </div>
+              <p class="text-xs font-semibold text-white mt-1">Restore & Validação</p>
+              <p class="text-[11px] text-slate-400 truncate">Recria base e valida páginas</p>
+            </button>
+          </div>
+
+          <!-- JOB 4 FORM: Full Pipeline -->
+          <form id="form-job-pipeline" onsubmit="submitFullPipeline(event)" class="space-y-3.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Servidor A (Produção)</label>
+                <select id="pipe-prod-host" onchange="syncPipelineDefaults()" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Servidor B (Teste / Validação)</label>
+                <select id="pipe-test-host" onchange="syncPipelineDefaults()" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none"></select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Base de Produção (.fdb)</label>
+                <input type="text" id="pipe-prod-db" value="/dados/venosan_prod.fdb" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Dir. Backup em Produção</label>
+                <input type="text" id="pipe-prod-bkp-dir" value="/backups" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Dir. Recebimento no Teste</label>
+                <input type="text" id="pipe-test-bkp-dir" value="/backups/recebidos" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Base Restaurada no Teste (.fdb)</label>
+                <input type="text" id="pipe-test-db" value="/dados_teste/venosan_valida.fdb" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Compressão em Pipe</label>
+                <select id="pipe-compression" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none">
+                  <option value="zstd">zstd -1 (Ultra-rápido)</option>
+                  <option value="gzip">gzip -1 (Padrão)</option>
+                  <option value="none">Sem compressão (.fbk puro)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Transporte de Rede</label>
+                <select id="pipe-transfer" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none">
+                  <option value="rsync">Rsync SSH (--progress)</option>
+                  <option value="scp">SCP / SFTP Bridge</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2 pt-1 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="pipe-nogc" checked class="rounded bg-slate-900 border-slate-700 text-orange-500 focus:ring-orange-500" />
+                <span>Ativar flag <code class="text-orange-400 font-mono-code">-g</code> (Inibir Garbage Collection na produção)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="pipe-gfix" checked class="rounded bg-slate-900 border-slate-700 text-orange-500 focus:ring-orange-500" />
+                <span>Executar <code class="text-orange-400 font-mono-code">gfix -v -full -n</code> após restore para validar páginas</span>
+              </label>
+            </div>
+
+            <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-semibold text-xs shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Executar Pipeline Completo (Backup + Transfer + Restore + gfix)
+            </button>
+          </form>
+
+          <!-- JOB 1 FORM: Backup Produção -->
+          <form id="form-job-backup" onsubmit="submitBackupJob(event)" class="space-y-3.5 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Servidor de Produção</label>
+              <select id="bkp-host" onchange="updateBackupPreview()" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Caminho da Base (.fdb)</label>
+              <input type="text" id="bkp-db-path" oninput="updateBackupPreview()" value="/dados/venosan_prod.fdb" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Diretório Destino</label>
+                <input type="text" id="bkp-dir" oninput="updateBackupPreview()" value="/backups" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Compressão</label>
+                <select id="bkp-comp" onchange="updateBackupPreview()" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white">
+                  <option value="zstd">zstd -1 (.fbk.zst)</option>
+                  <option value="gzip">gzip -1 (.fbk.gz)</option>
+                  <option value="none">Nenhuma (.fbk)</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="bkp-nogc" onchange="updateBackupPreview()" checked class="rounded bg-slate-900 border-slate-700 text-sky-500" />
+                <span>Flag <code class="text-sky-400 font-mono-code">-g</code> (Evita lentidão aos usuários durante backup)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="bkp-verbose" onchange="updateBackupPreview()" checked class="rounded bg-slate-900 border-slate-700 text-sky-500" />
+                <span>Flag <code class="text-sky-400 font-mono-code">-v</code> (Log detalhado de tabelas no console)</span>
+              </label>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+              <span class="text-[10px] uppercase tracking-wider text-slate-400 block mb-1">Preview do Comando SSH:</span>
+              <code id="bkp-cmd-preview" class="text-[11px] font-mono-code text-sky-300 break-all"></code>
+            </div>
+            <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs shadow-lg shadow-sky-600/20 transition">
+              Disparar Job 1: Backup Produção (gbak -b)
+            </button>
+          </form>
+
+          <!-- JOB 2 FORM: Transferência -->
+          <form id="form-job-transfer" onsubmit="submitTransferJob(event)" class="space-y-3.5 hidden">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Servidor Origem (A)</label>
+                <select id="xfer-src-host" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Servidor Destino (B)</label>
+                <select id="xfer-dst-host" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white"></select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Arquivo de Backup na Origem (.fbk.zst / .fbk)</label>
+              <input type="text" id="xfer-file" value="/backups/venosan_prod_latest.fbk.zst" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Diretório Remoto (Destino)</label>
+                <input type="text" id="xfer-target-dir" value="/backups/recebidos" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Protocolo</label>
+                <select id="xfer-method" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white">
+                  <option value="rsync">Rsync sobre SSH</option>
+                  <option value="scp">SCP + Relay SFTP</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-lg shadow-emerald-600/20 transition">
+              Disparar Job 2: Enviar para Servidor de Testes
+            </button>
+          </form>
+
+          <!-- JOB 3 FORM: Restore & Validação -->
+          <form id="form-job-restore" onsubmit="submitRestoreJob(event)" class="space-y-3.5 hidden">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Servidor de Teste / Homologação (Máquina B)</label>
+              <select id="rest-host" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Arquivo .fbk / .fbk.zst Recebido</label>
+              <input type="text" id="rest-bkp-file" value="/backups/recebidos/venosan_prod_latest.fbk.zst" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Caminho do .fdb Restaurado (Temporário/Validação)</label>
+              <input type="text" id="rest-db-path" value="/dados_teste/venosan_valida.fdb" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+            </div>
+            <div class="flex flex-col gap-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="rest-gfix" checked class="rounded bg-slate-900 border-slate-700 text-purple-500" />
+                <span>Executar validação física <code class="text-purple-400 font-mono-code">gfix -v -full -n</code> após restore</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-amber-300/90 cursor-pointer">
+                <input type="checkbox" id="rest-sim-corrupt" class="rounded bg-slate-900 border-slate-700 text-amber-500" />
+                <span>[Teste de Alerta] Simular anomalia de página no <code class="font-mono-code">gfix</code></span>
+              </label>
+            </div>
+            <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-lg shadow-purple-600/20 transition">
+              Disparar Job 3: Restore & Validação Física (gbak -c + gfix)
+            </button>
+          </form>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+          <span>Senhas mascaradas nos logs (<code class="text-slate-300">********</code>)</span>
+          <span>Pipe nativo <code class="text-slate-300">stdout | zstd</code></span>
+        </div>
+      </div>
+
+      <!-- Console Web em Tempo Real (7 cols on lg) -->
+      <div class="lg:col-span-7 terminal-window border border-slate-800 rounded-2xl flex flex-col overflow-hidden h-[540px]">
+        <div class="px-4 py-3 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+            </div>
+            <span class="text-xs font-mono-code font-semibold text-slate-200 ml-1">
+              root@inframgnt:~# tail -f /var/log/firebird_jobs.stream
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <select id="console-filter" onchange="renderConsoleLines()" class="rounded-lg bg-slate-950 border border-slate-800 px-2.5 py-1 text-[11px] text-slate-300 focus:outline-none">
+              <option value="all">Todos os Eventos</option>
+              <option value="cmd">Apenas Comandos ($)</option>
+              <option value="warn_err">Apenas Alertas / Erros</option>
+            </select>
+
+            <label class="flex items-center gap-1.5 text-[11px] text-slate-300 px-2 py-1 rounded bg-slate-950 border border-slate-800 cursor-pointer">
+              <input type="checkbox" id="console-autoscroll" checked class="rounded bg-slate-900 border-slate-700 text-orange-500" />
+              <span>Auto-scroll</span>
+            </label>
+
+            <button onclick="copyConsoleLogs()" title="Copiar saída do terminal" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition">
+              Copiar
+            </button>
+            <button onclick="clearConsole()" title="Limpar terminal" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 text-[11px] font-medium transition">
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <div id="terminal-output" class="flex-1 p-4 overflow-y-auto font-mono-code text-xs space-y-1 select-text">
+          <!-- Populated in real-time via WebSockets -->
+        </div>
+
+        <div class="px-4 py-2 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono-code text-slate-400">
+          <span id="terminal-status-text">Pronto. Aguardando disparo de Job...</span>
+          <span id="terminal-line-count">0 linhas</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 3. Catálogo de Rotinas de Manutenção Preventiva & Otimização Linux (ROTINAS_MANUTENCAO.md) -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              3. Catálogo de Rotinas de Manutenção Firebird & Tuning Linux
+            </h2>
+            <span class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              ROTINAS_MANUTENCAO.md
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Selecione o servidor alvo e dispare rotinas de índices online, diagnóstico de transações (OAT/OIT), Sweep manual, Rebuild completo ou otimizações de kernel/disco Linux.
+          </p>
+        </div>
+
+        <!-- Target Host & DB Selector for Maintenance Jobs -->
+        <div class="flex flex-wrap items-center gap-3 bg-slate-950/90 p-2.5 rounded-xl border border-slate-800">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-400">Servidor Alvo:</label>
+            <select id="maint-host" onchange="syncMaintDefaults()" class="rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-orange-500 focus:outline-none"></select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-medium text-slate-400">Base (.fdb):</label>
+            <input type="text" id="maint-db-path" value="/dados/venosan_prod.fdb" class="w-56 font-mono-code rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs text-white focus:border-orange-500 focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 Maintenance Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+
+        <!-- Card 1: job_reindex_stats -->
+        <div class="rounded-xl bg-slate-950/85 border border-slate-800 hover:border-emerald-500/40 p-4 flex flex-col justify-between transition">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-2">
+              <code class="text-[11px] font-mono-code text-emerald-400 font-semibold">job_reindex_stats</code>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Risco Mínimo</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Recalcular Estatísticas de Índices</h3>
+            <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              Executa <code class="text-slate-300">SET STATISTICS INDEX</code> em todos os índices ativos via <code class="text-slate-300">isql</code> para otimizar o plano de queries.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-900 space-y-2.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Exige Parada?</span>
+              <span class="text-emerald-400 font-semibold">Não (100% Online)</span>
+            </div>
+            <button onclick="runMaintenanceJob('job_reindex_stats')" class="w-full py-2 px-3 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-semibold transition">
+              Recalcular Índices
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 2: job_check_health -->
+        <div class="rounded-xl bg-slate-950/85 border border-slate-800 hover:border-sky-500/40 p-4 flex flex-col justify-between transition">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-2">
+              <code class="text-[11px] font-mono-code text-sky-400 font-semibold">job_check_health</code>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">Leitura Apenas</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Diagnóstico de OAT e Saúde do Banco</h3>
+            <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              Lê o Header Page (<code class="text-slate-300">gstat -h</code>), calcula o gap <code class="text-slate-300">Next - OAT</code> e identifica transações presas em <code class="text-slate-300">MON$TRANSACTIONS</code>.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-900 space-y-2.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Exige Parada?</span>
+              <span class="text-sky-400 font-semibold">Não (Read-Only)</span>
+            </div>
+            <button onclick="runMaintenanceJob('job_check_health')" class="w-full py-2 px-3 rounded-lg bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 text-xs font-semibold transition">
+              Diagnosticar OAT / Saúde
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 3: job_clean_sweep -->
+        <div class="rounded-xl bg-slate-950/85 border border-slate-800 hover:border-amber-500/40 p-4 flex flex-col justify-between transition">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-2">
+              <code class="text-[11px] font-mono-code text-amber-400 font-semibold">job_clean_sweep</code>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">Médio (I/O)</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Executar Sweep Manual</h3>
+            <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              Dispara <code class="text-slate-300">gfix -sweep</code> para remover versões obsoletas de registros (*backversions*) e avançar o contador OIT.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-900 space-y-2.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Exige Parada?</span>
+              <span class="text-amber-300 font-semibold">Não (Fora do pico)</span>
+            </div>
+            <button onclick="runMaintenanceJob('job_clean_sweep')" class="w-full py-2 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 text-xs font-semibold transition">
+              Executar gfix -sweep
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 4: job_full_rebuild -->
+        <div class="rounded-xl bg-slate-950/85 border border-slate-800 hover:border-rose-500/40 p-4 flex flex-col justify-between transition">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-2">
+              <code class="text-[11px] font-mono-code text-rose-400 font-semibold">job_full_rebuild</code>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">Risco Alto</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Ciclo Backup + Restore Completo</h3>
+            <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              Executa <code class="text-slate-300">gfix -shut full</code> &rarr; <code class="text-slate-300">gbak -b</code> &rarr; <code class="text-slate-300">gbak -c</code> &rarr; <code class="text-slate-300">gfix -v</code> &rarr; <code class="text-slate-300">gfix -online</code>.
+            </p>
+            <label class="mt-2.5 flex items-center gap-1.5 text-[11px] text-rose-300 cursor-pointer bg-rose-950/30 p-1.5 rounded border border-rose-500/20">
+              <input type="checkbox" id="maint-confirm-downtime" class="rounded bg-slate-900 border-rose-500 text-rose-500" />
+              <span>Confirmar parada (Janela)</span>
+            </label>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-900 space-y-2">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Exige Parada?</span>
+              <span class="text-rose-400 font-semibold">Sim (Shutdown)</span>
+            </div>
+            <button onclick="runMaintenanceJob('job_full_rebuild')" class="w-full py-2 px-3 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-semibold transition">
+              Executar Full Rebuild
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 5: job_linux_patches -->
+        <div class="rounded-xl bg-slate-950/85 border border-slate-800 hover:border-purple-500/40 p-4 flex flex-col justify-between transition">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-2">
+              <code class="text-[11px] font-mono-code text-purple-400 font-semibold">job_linux_patches</code>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">Leitura / Update</span>
+            </div>
+            <h3 class="text-sm font-bold text-white">Tuning & Patches do SO Linux</h3>
+            <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              Checa <code class="text-slate-300">noatime</code> no fstab, <code class="text-slate-300">vm.swappiness=10</code>, <code class="text-slate-300">fstrim.timer</code> (SSD), <code class="text-slate-300">apt-mark hold firebird*</code> e patches.
+            </p>
+            <select id="maint-linux-mode" class="mt-2.5 w-full rounded bg-slate-900 border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
+              <option value="audit_only">Modo: Somente Auditoria (Leitura)</option>
+              <option value="apply_optimizations">Modo: Aplicar Tuning + Hold Firebird</option>
+            </select>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-900 space-y-2">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-slate-500">Exige Parada?</span>
+              <span class="text-purple-300 font-semibold">Não (Reboot opc.)</span>
+            </div>
+            <button onclick="runMaintenanceJob('job_linux_patches')" class="w-full py-2 px-3 rounded-lg bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-semibold transition">
+              Verificar / Otimizar Linux
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4. Laboratório de Análise & Otimização Offline (.fdb / .fbk) -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              4. Laboratório de Análise & Otimização Offline (.fdb)
+            </h2>
+            <span class="text-[11px] font-mono-code px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+              Sandbox 100% Isolado • Risco Zero p/ Produção
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Faça upload de um arquivo <code class="text-slate-300">.fdb</code> da sua máquina (ou informe o caminho no servidor) para rodar um Raio-X completo (<code class="text-slate-300">gstat -h -r -i</code> + <code class="text-slate-300">gfix -v -full -n</code>) e descobrir se precisa de Sweep, Índices, <code class="text-slate-300">gfix -mend</code> ou Rebuild 16KB.
+          </p>
+        </div>
+      </div>
+
+      <!-- Import / Upload Bar -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
+        <!-- Box 1: Upload File from Local Machine -->
+        <div class="lg:col-span-5 rounded-xl bg-slate-950/90 border border-slate-800 p-4 flex flex-col justify-between gap-3">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 block mb-1">
+              Opção A • Upload de Arquivo (.fdb / .fbk) da sua Máquina
+            </span>
+            <p class="text-[11px] text-slate-400 mb-3">
+              Transmissão em stream direto para o disco do container (<code class="text-slate-300">/app/backend/data/offline_lab/</code>) sem consumir memória RAM.
+            </p>
+            <div class="flex items-center gap-2">
+              <input
+                type="file"
+                id="offline-file-input"
+                accept=".fdb,.fbk,.zst,.gz"
+                class="block w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer bg-slate-900 rounded-lg border border-slate-800 p-1"
+              />
+              <button
+                type="button"
+                onclick="uploadOfflineFile()"
+                id="btn-offline-upload"
+                class="shrink-0 px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition"
+              >
+                Enviar p/ Container
+              </button>
+            </div>
+          </div>
+
+          <!-- Upload Progress Bar -->
+          <div id="offline-upload-progress-wrap" class="hidden space-y-1">
+            <div class="flex justify-between text-[11px] font-mono-code text-cyan-300">
+              <span id="offline-upload-status">Enviando arquivo...</span>
+              <span id="offline-upload-pct">0%</span>
+            </div>
+            <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+              <div id="offline-upload-bar" class="h-full bg-gradient-to-r from-cyan-500 to-sky-400 transition-all duration-150" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Box 2: Path Selector & Run X-Ray -->
+        <div class="lg:col-span-7 rounded-xl bg-slate-950/90 border border-slate-800 p-4 flex flex-col justify-between gap-3">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-orange-400 block mb-1">
+              Opção B • Caminho do Arquivo .fdb & Disparo do Raio-X
+            </span>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 mt-2">
+              <div class="sm:col-span-6">
+                <label class="block text-[11px] text-slate-400 mb-1">Caminho do Arquivo (.fdb)</label>
+                <input
+                  type="text"
+                  id="offline-db-path"
+                  value="/dados_teste/venosan_offline_lab.fdb"
+                  placeholder="/app/backend/data/offline_lab/meu_banco.fdb"
+                  class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+              <div class="sm:col-span-3">
+                <label class="block text-[11px] text-slate-400 mb-1">Local de Execução</label>
+                <select id="offline-host-select" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 text-xs text-white">
+                  <option value="">Container Local (Sandbox)</option>
+                </select>
+              </div>
+              <div class="sm:col-span-3">
+                <label class="block text-[11px] text-slate-400 mb-1">Cenário (Modo Simulação)</label>
+                <select id="offline-sim-profile" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-2 text-xs text-white">
+                  <option value="needs_optimization">Com Lixo + Índices Depth 4</option>
+                  <option value="corrupted">Com Corrupção Física (gfix)</option>
+                  <option value="healthy">100% Limpo & Otimizado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-900">
+            <span class="text-[11px] text-slate-400">
+              Executa: <code class="text-slate-300 font-mono-code">gstat -h -r -i</code> + <code class="text-slate-300 font-mono-code">gfix -v -full -n</code>
+            </span>
+            <button
+              type="button"
+              onclick="runOfflineXRay()"
+              id="btn-run-xray"
+              class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 text-white text-xs font-bold shadow-lg shadow-cyan-600/20 flex items-center gap-2 transition"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Analisar Arquivo .fdb Agora (Raio-X)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Diagnostic Report Output Container (Hidden until first analysis) -->
+      <div id="offline-report-container" class="hidden space-y-5 pt-4 border-t border-slate-800">
+        <!-- Populated dynamically by renderOfflineReport() in app.js -->
+      </div>
+    </section>
+
+    <!-- 5. Histórico e Relatórios de Execução -->
+    <section class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+            5. Histórico de Execuções & Relatórios de Auditoria
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Registro persistente em SQLite com tempo de execução, status de validação física e download do arquivo de log completo.
+          </p>
+        </div>
+        <button onclick="loadExecutions()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition">
+          Atualizar Histórico
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-950/90 border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <th class="py-3 px-4">#ID</th>
+              <th class="py-3 px-4">Data / Hora</th>
+              <th class="py-3 px-4">Job Executado</th>
+              <th class="py-3 px-4">Servidor(es)</th>
+              <th class="py-3 px-4">Resumo / Diagnóstico</th>
+              <th class="py-3 px-4">Duração</th>
+              <th class="py-3 px-4">Status</th>
+              <th class="py-3 px-4 text-right">Auditoria / Log</th>
+            </tr>
+          </thead>
+          <tbody id="executions-tbody" class="divide-y divide-slate-800/70 text-xs">
+            <!-- Populated via app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: Add / Edit Host -->
+  <div id="host-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 id="host-modal-title" class="text-base font-bold text-white">Cadastrar Servidor Firebird</h3>
+        <button onclick="closeHostModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+
+      <form id="host-form" onsubmit="saveHost(event)" class="space-y-3.5 mt-4">
+        <input type="hidden" id="host-id" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1">Nome do Servidor</label>
+            <input type="text" id="host-name" required placeholder="Ex: Servidor A - Produção" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Papel</label>
+            <select id="host-role" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white">
+              <option value="production">Produção</option>
+              <option value="testing">Teste / Validação</option>
+              <option value="storage">Storage Backup</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1">IP ou Hostname</label>
+            <input type="text" id="host-hostname" required placeholder="192.168.10.10" class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Porta SSH</label>
+            <input type="number" id="host-port" value="22" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Usuário SSH</label>
+            <input type="text" id="host-username" value="root" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Autenticação SSH</label>
+            <select id="host-auth-type" class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white">
+              <option value="key">Chave Privada SSH</option>
+              <option value="password">Senha SSH</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Caminho Chave / Senha</label>
+            <input type="text" id="host-secret" value="~/.ssh/id_rsa" class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Usuário Firebird</label>
+            <input type="text" id="host-fb-user" value="SYSDBA" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Senha Firebird</label>
+            <input type="password" id="host-fb-password" value="masterkey" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Caminho Padrão da Base (.fdb)</label>
+            <input type="text" id="host-db-path" value="/dados/venosan_prod.fdb" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Diretório Padrão de Backups</label>
+            <input type="text" id="host-backup-dir" value="/backups" required class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <label class="flex items-start gap-2.5 cursor-pointer">
+            <input type="checkbox" id="host-simulated" checked class="mt-0.5 rounded bg-slate-900 border-slate-700 text-orange-500" />
+            <div>
+              <span class="text-xs font-semibold text-white block">Modo Simulação / Homologação (Sem SSH real)</span>
+              <span class="text-[11px] text-slate-400 block">
+                Quando marcado, simula a saída real do <code class="text-slate-300">gbak</code>, <code class="text-slate-300">gstat</code> e <code class="text-slate-300">gfix</code> para validar o fluxo. Desmarque para executar conexões SSH reais via Paramiko.
+              </span>
+            </div>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeHostModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold">
+            Salvar Servidor
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Inspect Host (gstat -h & Disk & Backups) -->
+  <div id="inspect-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 id="inspect-modal-title" class="text-base font-bold text-white">Inspeção de Saúde Firebird (gstat -h) & Disco</h3>
+          <p id="inspect-modal-sub" class="text-xs text-slate-400 font-mono-code mt-0.5"></p>
+        </div>
+        <button onclick="closeInspectModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+
+      <div id="inspect-modal-body" class="flex-1 overflow-y-auto space-y-4 mt-4 text-xs">
+        <!-- Populated dynamically via app.js -->
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 mt-4 border-t border-slate-800">
+        <button onclick="closeInspectModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: View Full Execution Log -->
+  <div id="log-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-5 shadow-2xl flex flex-col max-h-[85vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 id="log-modal-title" class="text-sm font-bold text-white">Log de Auditoria da Execução</h3>
+          <p id="log-modal-sub" class="text-xs text-slate-400 font-mono-code mt-0.5"></p>
+        </div>
+        <button onclick="closeLogModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+      <pre id="log-modal-content" class="flex-1 mt-3 p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono-code text-xs text-slate-200 overflow-y-auto whitespace-pre-wrap"></pre>
+      <div class="flex items-center justify-end gap-2 pt-3 mt-3 border-t border-slate-800">
+        <a id="log-modal-download" href="#" download class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold">
+          Baixar Arquivo .log
+        </a>
+        <button onclick="closeLogModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Security, Password & Operators Management -->
+  <div id="security-modal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 class="text-base font-bold text-white">Segurança de Acesso & Operadores (Proxmox Guard)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Altere sua senha de administrador ou cadastre operadores autorizados.</p>
+        </div>
+        <button onclick="closeSecurityModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <!-- Change Password Form -->
+        <form onsubmit="submitChangePassword(event)" class="space-y-3 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-orange-400">Alterar Minha Senha</h4>
+          <div>
+            <label class="block text-xs text-slate-300 mb-1">Senha Atual</label>
+            <input type="password" id="sec-curr-pass" required class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-300 mb-1">Nova Senha (mín. 6 caracteres)</label>
+            <input type="password" id="sec-new-pass" required minlength="6" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <button type="submit" class="w-full py-2 px-3 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold transition">
+            Atualizar Senha
+          </button>
+        </form>
+
+        <!-- Create New Operator Form -->
+        <form onsubmit="submitNewUser(event)" class="space-y-3 bg-slate-950/80 p-4 rounded-xl border border-slate-800">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-sky-400">Novo Operador Autorizado</h4>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs text-slate-300 mb-1">Login</label>
+              <input type="text" id="sec-new-username" required placeholder="operador1" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
+            </div>
+            <div>
+              <label class="block text-xs text-slate-300 mb-1">Perfil</label>
+              <select id="sec-new-role" class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white">
+                <option value="operator">Operador</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-300 mb-1">Nome Completo / Setor</label>
+            <input type="text" id="sec-new-fullname" required placeholder="Equipe Infra Venosan" class="w-full rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-300 mb-1">Senha Inicial</label>
+            <input type="password" id="sec-new-userpass" required minlength="6" class="w-full font-mono-code rounded-lg bg-slate-900 border border-slate-800 px-2.5 py-1.5 text-xs text-white" />
+          </div>
+          <button type="submit" class="w-full py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition">
+            Adicionar Usuário
+          </button>
+        </form>
+      </div>
+
+      <!-- Existing Users List -->
+      <div class="mt-5">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Usuários com Acesso ao Container</h4>
+        <div class="rounded-xl border border-slate-800 overflow-hidden bg-slate-950">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-900 text-slate-400 border-b border-slate-800 text-[11px]">
+                <th class="py-2 px-3">Usuário</th>
+                <th class="py-2 px-3">Nome</th>
+                <th class="py-2 px-3">Perfil</th>
+                <th class="py-2 px-3">Último Login</th>
+                <th class="py-2 px-3 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="security-users-tbody" class="divide-y divide-slate-800/70"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 mt-4 border-t border-slate-800">
+        <button onclick="closeSecurityModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
