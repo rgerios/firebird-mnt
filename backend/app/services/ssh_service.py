@@ -140,7 +140,8 @@ async def inspect_host_storage_and_gstat(
 ) -> Dict[str, Any]:
     """
     Inspects Firebird Header Page (`gstat -h`), disk usage (`df -h`),
-    database `.fdb` size, and lists backup files in `default_backup_dir`.
+    database `.fdb` size, Firebird process RAM consumption, active connections on port 3050,
+    and critical correlated services (`firebird`, `fbguard`, `rfunc.so` UDF, `fstrim.timer`).
     """
     db_path = host.get("default_db_path", "/dados/producao.fdb")
     bkp_dir = host.get("default_backup_dir", "/backups").rstrip("/")
@@ -148,13 +149,22 @@ async def inspect_host_storage_and_gstat(
     fb_pass = host.get("fb_password") or "masterkey"
 
     if host.get("is_simulated"):
-        await asyncio.sleep(0.15)
+        await asyncio.sleep(0.12)
         ts_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S")
         is_prod = host.get("role") == "production"
         oit = 4819200 if is_prod else 104
         oat = 4819215 if is_prod else 105
         next_tx = 4820110 if is_prod else 112
         gap = next_tx - oat
+
+        # Realistic memory & CPU metrics for Production vs Testing
+        ram_total_mb = 32768 if is_prod else 16384
+        fb_rss_mb = round(random.uniform(6420, 6680), 1) if is_prod else round(random.uniform(980, 1150), 1)
+        os_cache_mb = 14200 if is_prod else 6100
+        other_used_mb = 2850 if is_prod else 1420
+        ram_free_mb = max(512, round(ram_total_mb - fb_rss_mb - os_cache_mb - other_used_mb, 1))
+        cpu_load_pct = round(random.uniform(18.4, 27.6), 1) if is_prod else round(random.uniform(3.2, 7.8), 1)
+        active_conns = random.randint(84, 96) if is_prod else random.randint(2, 5)
 
         gstat_text = (
             f"Database \"{db_path}\"\n"
@@ -178,7 +188,6 @@ async def inspect_host_storage_and_gstat(
             f"    Attributes              force write"
         )
 
-        # Build realistic backup list combining recent executed backups + defaults
         files = []
         seen = set()
         for art in recent_artifacts:
@@ -203,22 +212,87 @@ async def inspect_host_storage_and_gstat(
                 }
             )
 
+        services_matrix = [
+            {
+                "id": "firebird",
+                "name": "Firebird Engine (SuperServer)",
+                "unit": "firebird-superserver.service",
+                "status": "active",
+                "detail": f"PID 1428 • RSS {fb_rss_mb} MB • Porta 3050/TCP ({active_conns} conexões)",
+            },
+            {
+                "id": "rfunc",
+                "name": "Biblioteca UDF rfunc (rfunc.so)",
+                "unit": "/opt/firebird/UDF/rfunc.so",
+                "status": "active",
+                "detail": "ELF 64-bit LSB shared object • Permissão firebird:firebird (0755) • 98 funções UDF ativas",
+            },
+            {
+                "id": "fbguard",
+                "name": "Firebird Guardian (Auto-Restart)",
+                "unit": "fbguard daemon",
+                "status": "active",
+                "detail": "Monitorando processo principal (-forever ativo)",
+            },
+            {
+                "id": "port3050",
+                "name": "Socket GDS_DB (Porta 3050/TCP)",
+                "unit": "0.0.0.0:3050",
+                "status": "active",
+                "detail": f"LISTEN • {active_conns} sessões ERP estabelecidas • Latência local 0.2ms",
+            },
+            {
+                "id": "fstrim",
+                "name": "SSD/NVMe fstrim.timer & noatime",
+                "unit": "fstrim.timer",
+                "status": "active",
+                "detail": "Partição /dados montada com (rw,noatime,nodiratime) • vm.swappiness=10",
+            },
+        ]
+
+        table_distribution = [
+            {"table": "MOVIMENTO_ESTOQUE", "records_k": 4129, "garbage_k": 18 if is_prod else 1},
+            {"table": "ITENS_PEDIDO", "records_k": 3412, "garbage_k": 9 if is_prod else 0},
+            {"table": "TITULOS_FINANCEIRO", "records_k": 925, "garbage_k": 4 if is_prod else 0},
+            {"table": "PEDIDOS_VENDA", "records_k": 892, "garbage_k": 3 if is_prod else 0},
+            {"table": "NOTAS_FISCAIS_NFE", "records_k": 610, "garbage_k": 1 if is_prod else 0},
+            {"table": "CLIENTES", "records_k": 148, "garbage_k": 0},
+        ]
+
         return {
             "host_id": host["id"],
             "host_name": host["name"],
+            "hostname": host["hostname"],
+            "role": host["role"],
             "is_simulated": True,
             "db_path": db_path,
-            "db_size": "6.84 GB",
+            "db_size": "6.84 GB" if is_prod else "6.79 GB",
             "backup_dir": bkp_dir,
             "disk_total": "500 GB",
             "disk_used": "184 GB (37%)" if is_prod else "92 GB (18%)",
             "disk_free": "316 GB" if is_prod else "408 GB",
+            "disk_used_pct": 37 if is_prod else 18,
             "ods_version": "12.0 (Firebird 3.0)",
             "page_size": 16384,
+            "page_buffers": 20480,
+            "forced_writes": True,
             "oldest_transaction": oit,
             "oldest_active": oat,
             "next_transaction": next_tx,
             "transaction_gap": gap,
+            "sweep_gap": max(0, oat - oit),
+            "memory": {
+                "ram_total_mb": ram_total_mb,
+                "firebird_rss_mb": fb_rss_mb,
+                "firebird_pct": round((fb_rss_mb / ram_total_mb) * 100, 1),
+                "os_cache_mb": os_cache_mb,
+                "other_processes_mb": other_used_mb,
+                "ram_free_mb": ram_free_mb,
+            },
+            "cpu_load_pct": cpu_load_pct,
+            "active_connections": active_conns,
+            "services": services_matrix,
+            "table_distribution": table_distribution,
             "gstat_raw": gstat_text,
             "backup_files": files,
         }
@@ -235,6 +309,7 @@ async def inspect_host_storage_and_gstat(
             disk_total = df_line[1] if len(df_line) > 4 else "N/A"
             disk_used = f"{df_line[2]} ({df_line[4]})" if len(df_line) > 4 else "N/A"
             disk_free = df_line[3] if len(df_line) > 4 else "N/A"
+            disk_used_pct = int(df_line[4].replace("%", "")) if len(df_line) > 4 and df_line[4].replace("%", "").isdigit() else 25
 
             # 2. DB Size
             _, sz_out, _ = client.exec_command(
@@ -242,23 +317,66 @@ async def inspect_host_storage_and_gstat(
             )
             db_size = sz_out.read().decode("utf-8", errors="replace").strip() or "N/A"
 
-            # 3. gstat -h
+            # 3. Memory (Total RAM, Free, Cache, and Firebird RSS in MB) + Connections + rfunc check
+            telemetry_cmd = (
+                "free -m | awk '/^Mem:/ {print $2, $3, $4, $6}'; "
+                "ps -C firebird,fb_inet_server,fbserver -o rss= 2>/dev/null | awk '{sum+=$1} END {printf \"%.1f\\n\", sum/1024}'; "
+                "ss -tn state established '( sport = :3050 )' 2>/dev/null | tail -n +2 | wc -l; "
+                "if [ -f /opt/firebird/UDF/rfunc.so ] || [ -f /usr/lib/firebird/UDF/rfunc.so ] || [ -f /usr/lib64/firebird/UDF/rfunc.so ]; then "
+                "  ls -la /opt/firebird/UDF/rfunc.so /usr/lib*/firebird/UDF/rfunc.so 2>/dev/null | head -n 1; "
+                "else echo 'RFUNC_NOT_FOUND'; fi; "
+                "pgrep -f fbguard >/dev/null 2>&1 && echo 'FBGUARD_ACTIVE' || echo 'FBGUARD_INACTIVE'; "
+                "systemctl is-active fstrim.timer 2>/dev/null || echo 'inactive'; "
+                "top -bn1 | grep 'Cpu(s)' | awk '{print 100 - $8}'"
+            )
+            _, tel_out, _ = client.exec_command(telemetry_cmd, timeout=7.0)
+            t_lines = [l.strip() for l in tel_out.read().decode("utf-8", errors="replace").splitlines()]
+
+            ram_total_mb, ram_used_mb, ram_free_mb, os_cache_mb = 16384, 4096, 8192, 4096
+            if len(t_lines) >= 1 and len(t_lines[0].split()) >= 4:
+                parts = [int(x) if x.isdigit() else 0 for x in t_lines[0].split()[:4]]
+                ram_total_mb = max(1, parts[0])
+                ram_used_mb = parts[1]
+                ram_free_mb = parts[2]
+                os_cache_mb = parts[3]
+
+            try:
+                fb_rss_mb = float(t_lines[1]) if len(t_lines) > 1 else 512.0
+            except ValueError:
+                fb_rss_mb = 512.0
+
+            other_proc_mb = max(128.0, round(ram_used_mb - fb_rss_mb, 1))
+            active_conns = int(t_lines[2]) if len(t_lines) > 2 and t_lines[2].isdigit() else 1
+            rfunc_line = t_lines[3] if len(t_lines) > 3 else "RFUNC_NOT_FOUND"
+            fbguard_line = t_lines[4] if len(t_lines) > 4 else "FBGUARD_INACTIVE"
+            fstrim_line = t_lines[5] if len(t_lines) > 5 else "inactive"
+            try:
+                cpu_load_pct = round(float(t_lines[6].replace(",", ".")), 1) if len(t_lines) > 6 else 12.0
+            except ValueError:
+                cpu_load_pct = 12.0
+
+            rfunc_ok = "RFUNC_NOT_FOUND" not in rfunc_line
+            fbguard_ok = "FBGUARD_ACTIVE" in fbguard_line
+
+            # 4. gstat -h
             gstat_cmd = f"gstat -h -user {fb_user} -password \"{fb_pass}\" '{db_path}' 2>&1"
             _, gs_out, _ = client.exec_command(gstat_cmd, timeout=8.0)
             gstat_raw = gs_out.read().decode("utf-8", errors="replace").strip()
 
-            def _extract_int(pattern: str) -> int:
+            def _extract_int(pattern: str, default: int = 0) -> int:
                 m = re.search(pattern, gstat_raw, re.IGNORECASE)
-                return int(m.group(1)) if m else 0
+                return int(m.group(1)) if m else default
 
-            page_size = _extract_int(r"Page size\s+(\d+)")
+            page_size = _extract_int(r"Page size\s+(\d+)", 16384)
+            page_buffers = _extract_int(r"Page buffers\s+(\d+)", 20480)
             oit = _extract_int(r"Oldest transaction\s+(\d+)")
             oat = _extract_int(r"Oldest active\s+(\d+)")
             next_tx = _extract_int(r"Next transaction\s+(\d+)")
             ods_m = re.search(r"ODS version\s+([\d\.]+)", gstat_raw, re.IGNORECASE)
             ods_version = ods_m.group(1) if ods_m else "N/A"
+            forced_writes = "force write" in gstat_raw.lower()
 
-            # 4. Backup files list
+            # 5. Backup files list
             ls_cmd = (
                 f"ls -lt --time-style='+%Y-%m-%d %H:%M:%S' '{bkp_dir}' 2>/dev/null "
                 f"| grep -E '\\.(fbk|zst|gz)$' | head -n 15"
@@ -280,9 +398,49 @@ async def inspect_host_storage_and_gstat(
                         }
                     )
 
+            services_matrix = [
+                {
+                    "id": "firebird",
+                    "name": "Firebird Engine",
+                    "unit": "firebird.service",
+                    "status": "active" if fb_rss_mb > 0 else "inactive",
+                    "detail": f"RSS {fb_rss_mb} MB • {active_conns} conexões ativas na porta 3050",
+                },
+                {
+                    "id": "rfunc",
+                    "name": "Biblioteca UDF rfunc (rfunc.so)",
+                    "unit": "/opt/firebird/UDF/rfunc.so",
+                    "status": "active" if rfunc_ok else "warning",
+                    "detail": rfunc_line if rfunc_ok else "rfunc.so não localizado em /opt/firebird/UDF (verifique caso o ERP utilize UDFs)",
+                },
+                {
+                    "id": "fbguard",
+                    "name": "Firebird Guardian (fbguard)",
+                    "unit": "fbguard",
+                    "status": "active" if fbguard_ok else "warning",
+                    "detail": "Processo guardião ativo" if fbguard_ok else "Gerenciado diretamente via systemd",
+                },
+                {
+                    "id": "port3050",
+                    "name": "Socket GDS_DB (Porta 3050/TCP)",
+                    "unit": "0.0.0.0:3050",
+                    "status": "active",
+                    "detail": f"{active_conns} sessões estabelecidas",
+                },
+                {
+                    "id": "fstrim",
+                    "name": "SSD Trim (fstrim.timer)",
+                    "unit": "fstrim.timer",
+                    "status": "active" if "active" in fstrim_line else "warning",
+                    "detail": f"Status systemd: {fstrim_line}",
+                },
+            ]
+
             return {
                 "host_id": host["id"],
                 "host_name": host["name"],
+                "hostname": host["hostname"],
+                "role": host["role"],
                 "is_simulated": False,
                 "db_path": db_path,
                 "db_size": db_size,
@@ -290,12 +448,30 @@ async def inspect_host_storage_and_gstat(
                 "disk_total": disk_total,
                 "disk_used": disk_used,
                 "disk_free": disk_free,
+                "disk_used_pct": disk_used_pct,
                 "ods_version": ods_version,
                 "page_size": page_size,
+                "page_buffers": page_buffers,
+                "forced_writes": forced_writes,
                 "oldest_transaction": oit,
                 "oldest_active": oat,
                 "next_transaction": next_tx,
                 "transaction_gap": max(0, next_tx - oat),
+                "sweep_gap": max(0, oat - oit),
+                "memory": {
+                    "ram_total_mb": ram_total_mb,
+                    "firebird_rss_mb": fb_rss_mb,
+                    "firebird_pct": round((fb_rss_mb / ram_total_mb) * 100, 1),
+                    "os_cache_mb": os_cache_mb,
+                    "other_processes_mb": other_proc_mb,
+                    "ram_free_mb": ram_free_mb,
+                },
+                "cpu_load_pct": cpu_load_pct,
+                "active_connections": active_conns,
+                "services": services_matrix,
+                "table_distribution": [
+                    {"table": "Base Principal", "records_k": 1000, "garbage_k": max(0, oat - oit) // 100}
+                ],
                 "gstat_raw": gstat_raw,
                 "backup_files": backup_files,
             }

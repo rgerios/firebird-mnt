@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#152238"/>
+      <stop offset="100%" stop-color="#080c16"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="540" rx="16" fill="url(#bgGrad3)" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- Section Header -->
+  <circle cx="44" cy="40" r="6" fill="#c4b5fd"/>
+  <text x="60" y="45" font-family="Inter, sans-serif" font-size="16" font-weight="800" fill="#ffffff">5. Laboratório de Análise &amp; Otimização Offline (.fdb Sandbox)</text>
+  <rect x="525" y="27" width="235" height="24" rx="12" fill="#134e4a" stroke="#5eead4"/>
+  <text x="642" y="43" font-family="monospace" font-size="10" font-weight="700" fill="#99f6e4" text-anchor="middle">100% Isolado • Risco Zero p/ Produção</text>
+
+  <!-- Upload & Path Bar -->
+  <rect x="28" y="66" width="460" height="84" rx="14" fill="#11243a" stroke="#7dd3fc" stroke-opacity="0.4"/>
+  <text x="44" y="88" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#bae6fd">OPÇÃO A • UPLOAD DE ARQUIVO (.FDB / .FBK) DA SUA MÁQUINA</text>
+  <rect x="44" y="100" width="310" height="32" rx="8" fill="#090d16" stroke="#334155"/>
+  <text x="58" y="120" font-family="monospace" font-size="11" fill="#7dd3fc">venosan_copia_local.fdb (1.84 GB) • 100%</text>
+  <rect x="364" y="100" width="108" height="32" rx="8" fill="#0284c7"/>
+  <text x="418" y="120" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Importar .fdb</text>
+
+  <rect x="504" y="66" width="668" height="84" rx="14" fill="#1d1a39" stroke="#c4b5fd" stroke-opacity="0.4"/>
+  <text x="520" y="88" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ddd6fe">OPÇÃO B • CAMINHO DO ARQUIVO .FDB &amp; DISPARO DO RAIO-X OFFLINE</text>
+  <rect x="520" y="100" width="420" height="32" rx="8" fill="#090d16" stroke="#334155"/>
+  <text x="534" y="120" font-family="monospace" font-size="11" fill="#ffffff">/app/backend/data/offline_lab/venosan_copia_local.fdb</text>
+  <rect x="952" y="100" width="204" height="32" rx="8" fill="#5eead4"/>
+  <text x="1054" y="120" font-family="Inter, sans-serif" font-size="11" font-weight="800" fill="#0f172a" text-anchor="middle">🔍 Analisar .fdb (Raio-X)</text>
+
+  <!-- Health Score Banner -->
+  <rect x="28" y="166" width="1144" height="72" rx="14" fill="#090d16" stroke="#334155"/>
+  <rect x="44" y="178" width="110" height="48" rx="10" fill="#451a03" stroke="#fb923c"/>
+  <text x="99" y="194" font-family="monospace" font-size="9" fill="#fdba74" text-anchor="middle">HEALTH SCORE</text>
+  <text x="99" y="217" font-family="monospace" font-size="20" font-weight="800" fill="#fb923c" text-anchor="middle">53/100</text>
+
+  <text x="172" y="198" font-family="Inter, sans-serif" font-size="15" font-weight="800" fill="#ffffff">Requer Otimização Preventiva (1.84 GB)</text>
+  <text x="172" y="220" font-family="monospace" font-size="11" fill="#94a3b8">Page Size: 8192 (Recomendado: 16384)  |  ODS: 12.0  |  Lixo Total: 282.610 backversions  |  Índices Depth &gt;= 3: 3</text>
+
+  <rect x="835" y="182" width="320" height="40" rx="10" fill="#10b981"/>
+  <text x="995" y="206" font-family="Inter, sans-serif" font-size="12" font-weight="800" fill="#052e16" text-anchor="middle">⚡ Aplicar Todas as Correções Offline (1-Clique)</text>
+
+  <!-- 4 Recommendation Cards -->
+  <!-- Rec 1: gfix OK -->
+  <rect x="28" y="252" width="274" height="114" rx="12" fill="#112a2e" stroke="#5eead4" stroke-opacity="0.4"/>
+  <text x="42" y="274" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#99f6e4">INTEGRIDADE FÍSICA (GFIX)</text>
+  <text x="42" y="296" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">0 Erros de Página ou Registro</text>
+  <text x="42" y="315" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">Nenhuma corrupção física encontrada</text>
+  <text x="42" y="330" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">pelo gfix -v -full -n.</text>
+
+  <!-- Rec 2: Sweep Needed -->
+  <rect x="318" y="252" width="274" height="114" rx="12" fill="#331e14" stroke="#fb923c" stroke-opacity="0.6"/>
+  <text x="332" y="274" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#fdba74">COLETA DE LIXO / SWEEP</text>
+  <text x="332" y="296" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">282.610 Backversions Acumuladas</text>
+  <text x="332" y="314" font-family="Inter, sans-serif" font-size="10" fill="#fed7aa">MOVIMENTO_ESTOQUE (184.920)</text>
+  <rect x="332" y="328" width="246" height="26" rx="6" fill="#ea580c"/>
+  <text x="455" y="345" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">⚡ Executar Sweep Offline (gfix -sweep)</text>
+
+  <!-- Rec 3: Index Depth -->
+  <rect x="608" y="252" width="274" height="114" rx="12" fill="#45121b" stroke="#f87171" stroke-opacity="0.7"/>
+  <text x="622" y="274" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#fca5a5">ÁRVORES DE ÍNDICES (B-TREE)</text>
+  <text x="622" y="296" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">3 Índices com Depth &gt;= 3 (Crítico: 4)</text>
+  <text x="622" y="314" font-family="Inter, sans-serif" font-size="10" fill="#fecdd3">IDX_MOV_ESTOQUE_DATA_PROD (Depth 4)</text>
+  <rect x="622" y="328" width="246" height="26" rx="6" fill="#dc2626"/>
+  <text x="745" y="345" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">⚡ Recalcular Índices (SET STATISTICS)</text>
+
+  <!-- Rec 4: Page Size 16K -->
+  <rect x="898" y="252" width="274" height="114" rx="12" fill="#331e14" stroke="#fb923c" stroke-opacity="0.6"/>
+  <text x="912" y="274" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#fdba74">PAGE SIZE &amp; FRAGMENTAÇÃO</text>
+  <text x="912" y="296" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff">Page Size 8192 (Fill médio 54%)</text>
+  <text x="912" y="314" font-family="Inter, sans-serif" font-size="10" fill="#fed7aa">Converter para 16384 bytes via gbak</text>
+  <rect x="912" y="328" width="246" height="26" rx="6" fill="#ea580c"/>
+  <text x="1035" y="345" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">⚡ Rebuild Offline p/ 16KB (gbak)</text>
+
+  <!-- Bottom 2 Tables: gstat -r & gstat -i -->
+  <rect x="28" y="380" width="564" height="140" rx="12" fill="#090d16" stroke="#1e293b"/>
+  <text x="44" y="402" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">Raio-X de Tabelas &amp; Lixo Acumulado (gstat -r)</text>
+  <text x="44" y="428" font-family="monospace" font-size="11" fill="#e2e8f0">MOVIMENTO_ESTOQUE   4.129.005 regs   184.920 lixo   Fill: 54%   [PRECISA SWEEP]</text>
+  <text x="44" y="452" font-family="monospace" font-size="11" fill="#e2e8f0">ITENS_PEDIDO        3.412.880 regs    62.410 lixo   Fill: 63%   [PRECISA SWEEP]</text>
+  <text x="44" y="476" font-family="monospace" font-size="11" fill="#e2e8f0">PEDIDOS_VENDA         892.310 regs    19.840 lixo   Fill: 71%   [LIXO MODERADO]</text>
+  <text x="44" y="500" font-family="monospace" font-size="11" fill="#99f6e4">CLIENTES              148.920 regs     1.120 lixo   Fill: 85%   [LIMPA]</text>
+
+  <rect x="608" y="380" width="564" height="140" rx="12" fill="#090d16" stroke="#1e293b"/>
+  <text x="624" y="402" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">Raio-X de Índices B-Tree (gstat -i • Ideal: Depth &lt;= 2)</text>
+  <text x="624" y="428" font-family="monospace" font-size="11" fill="#fca5a5">IDX_MOV_ESTOQUE_DATA_PROD   Depth: 4   4.313.925 nós   Dup: 44%  [REBUILD 16K]</text>
+  <text x="624" y="452" font-family="monospace" font-size="11" fill="#fdba74">FK_ITENS_PEDIDO_PED         Depth: 3   3.475.290 nós   Dup: 73%  [RECALCULAR]</text>
+  <text x="624" y="476" font-family="monospace" font-size="11" fill="#fdba74">IDX_PEDIDOS_STATUS_FILIAL   Depth: 3     892.310 nós   Dup: 99%  [RECALCULAR]</text>
+  <text x="624" y="500" font-family="monospace" font-size="11" fill="#99f6e4">PK_CLIENTES                 Depth: 2     148.920 nós   Dup:  0%  [ÓTIMO]</text>
+</svg>

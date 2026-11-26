@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#152238"/>
+      <stop offset="100%" stop-color="#080c16"/>
+    </linearGradient>
+    <linearGradient id="mintSafe" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#112a2e"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="skyManage" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#11243a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="violetManage" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d1a39"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="amberIo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#331e14"/>
+      <stop offset="100%" stop-color="#121829"/>
+    </linearGradient>
+    <linearGradient id="crimsonHot" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#45121b"/>
+      <stop offset="100%" stop-color="#1c0d16"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="620" rx="16" fill="url(#bgGrad2)" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- Top Section:Backup & WebSocket Console -->
+  <rect x="24" y="20" width="460" height="310" rx="16" fill="#11192c" stroke="#263452"/>
+  <circle cx="44" cy="44" r="5" fill="#fb923c"/>
+  <text x="58" y="48" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#ffffff">3. Orquestrador de Backup &amp; Homologação</text>
+  <text x="44" y="66" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Trava Hard ativa: impede gbak -c em servidores de Produção</text>
+
+  <!-- Tabs -->
+  <rect x="40" y="82" width="206" height="54" rx="10" fill="url(#amberIo)" stroke="#fb923c" stroke-width="1.5"/>
+  <text x="52" y="100" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#fdba74">Job 4 • 1-Clique (Completo)</text>
+  <text x="52" y="120" font-family="Inter, sans-serif" font-size="11" fill="#ffffff">Backup &rarr; Cópia &rarr; Restore &rarr; gfix</text>
+
+  <rect x="258" y="82" width="206" height="54" rx="10" fill="#0f172a" stroke="#334155"/>
+  <text x="270" y="100" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#7dd3fc">Job 1 / Job 2 / Job 3</text>
+  <text x="270" y="120" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Execução Individual por Etapa</text>
+
+  <!-- Inputs Preview -->
+  <rect x="40" y="148" width="424" height="36" rx="8" fill="#090d16" stroke="#1e293b"/>
+  <text x="52" y="170" font-family="monospace" font-size="11" fill="#99f6e4">Origem: Servidor A (192.168.10.10) &rarr; /dados/venosan_prod.fdb</text>
+
+  <rect x="40" y="194" width="424" height="36" rx="8" fill="#090d16" stroke="#1e293b"/>
+  <text x="52" y="216" font-family="monospace" font-size="11" fill="#bae6fd">Destino: Servidor B (192.168.10.20) &rarr; /dados_teste/valida.fdb</text>
+
+  <rect x="40" y="240" width="424" height="32" rx="8" fill="#090d16" stroke="#1e293b"/>
+  <text x="52" y="260" font-family="Inter, sans-serif" font-size="11" fill="#cbd5e1">☑ Flag -g (Inibir GC na produção)   ☑ Compressão zstd -1   ☑ gfix -v -full -n</text>
+
+  <rect x="40" y="282" width="424" height="34" rx="10" fill="#ea580c"/>
+  <text x="252" y="303" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">▶ Disparar Pipeline Completo (Backup A &rarr; Validação B)</text>
+
+  <!-- Right Terminal Window -->
+  <rect x="504" y="20" width="672" height="310" rx="16" fill="#070b14" stroke="#263452"/>
+  <rect x="504" y="20" width="672" height="38" rx="16" fill="#111827"/>
+  <circle cx="526" cy="39" r="5" fill="#fb7185"/>
+  <circle cx="542" cy="39" r="5" fill="#fcd34d"/>
+  <circle cx="558" cy="39" r="5" fill="#5eead4"/>
+  <text x="576" y="43" font-family="monospace" font-size="11" font-weight="600" fill="#ccfbf1">root@inframgnt:~# tail -f /var/log/firebird_mission_control.stream</text>
+
+  <text x="522" y="80" font-family="monospace" font-size="11" fill="#64748b">[09:24:10]</text>
+  <text x="595" y="80" font-family="monospace" font-size="11" fill="#5eead4">[Servidor A]</text>
+  <text x="688" y="80" font-family="monospace" font-size="11" fill="#7dd3fc">$ gbak -b -g -v -user SYSDBA -password "********" /dados/venosan_prod.fdb stdout | zstd -1</text>
+
+  <text x="522" y="104" font-family="monospace" font-size="11" fill="#64748b">[09:24:11]</text>
+  <text x="595" y="104" font-family="monospace" font-size="11" fill="#5eead4">[Servidor A]</text>
+  <text x="688" y="104" font-family="monospace" font-size="11" fill="#e2e8f0">gbak:modo -g ativo (Garbage Collection suprimido para zero impacto em produção)</text>
+
+  <text x="522" y="128" font-family="monospace" font-size="11" fill="#64748b">[09:24:13]</text>
+  <text x="595" y="128" font-family="monospace" font-size="11" fill="#5eead4">[Servidor A]</text>
+  <text x="688" y="128" font-family="monospace" font-size="11" fill="#e2e8f0">gbak:escrevendo tabela MOVIMENTO_ESTOQUE (4.129.005 registros)</text>
+
+  <text x="522" y="152" font-family="monospace" font-size="11" fill="#64748b">[09:24:16]</text>
+  <text x="595" y="152" font-family="monospace" font-size="11" fill="#5eead4">[A -&gt; B]</text>
+  <text x="688" y="152" font-family="monospace" font-size="11" fill="#6ee7b7">venosan_prod.fbk.zst: 100% 1454.08MB 94.1MB/s (SHA-256 Checksum OK)</text>
+
+  <text x="522" y="176" font-family="monospace" font-size="11" fill="#64748b">[09:24:19]</text>
+  <text x="595" y="176" font-family="monospace" font-size="11" fill="#5eead4">[Servidor B]</text>
+  <text x="688" y="176" font-family="monospace" font-size="11" fill="#e2e8f0">gbak:ativando e reconstruindo B-Tree indexes (PK_CLIENTES, IDX_PEDIDOS_DATA...)</text>
+
+  <text x="522" y="200" font-family="monospace" font-size="11" fill="#64748b">[09:24:22]</text>
+  <text x="595" y="200" font-family="monospace" font-size="11" fill="#5eead4">[Servidor B]</text>
+  <text x="688" y="200" font-family="monospace" font-size="11" fill="#7dd3fc">$ gfix -v -full -n -user SYSDBA -password "********" /dados_teste/venosan_valida.fdb</text>
+
+  <text x="522" y="224" font-family="monospace" font-size="11" fill="#64748b">[09:24:24]</text>
+  <text x="595" y="224" font-family="monospace" font-size="11" fill="#5eead4">[Servidor B]</text>
+  <text x="688" y="224" font-family="monospace" font-size="11" font-weight="700" fill="#6ee7b7">gfix: 0 erros de página, 0 páginas órfãs, 0 corrupções de índice detectadas!</text>
+
+  <!-- Bottom Section: 4. Rotinas de Manutenção (Pastel Safe vs Hot Critical) -->
+  <rect x="24" y="346" width="1152" height="254" rx="16" fill="#11192c" stroke="#263452"/>
+  <circle cx="44" cy="370" r="5" fill="#5eead4"/>
+  <text x="58" y="374" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#ffffff">4. Rotinas de Manutenção Firebird &amp; Tuning Linux (Pastel = Online vs Quente = Parada)</text>
+
+  <rect x="640" y="357" width="175" height="22" rx="11" fill="#134e4a" stroke="#5eead4"/>
+  <text x="727" y="372" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#99f6e4" text-anchor="middle">Pastel = 100% Online / Seguro</text>
+
+  <rect x="825" y="357" width="215" height="22" rx="11" fill="#7f1d1d" stroke="#f87171"/>
+  <text x="932" y="372" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#fecaca" text-anchor="middle">Vermelho Quente = Crítico / Parada</text>
+
+  <!-- 5 Maintenance Cards -->
+  <!-- Card 1: Pastel Mint -->
+  <rect x="40" y="394" width="212" height="190" rx="14" fill="url(#mintSafe)" stroke="#5eead4" stroke-opacity="0.45"/>
+  <text x="54" y="416" font-family="monospace" font-size="10" font-weight="700" fill="#99f6e4">job_check_health</text>
+  <rect x="148" y="403" width="52" height="16" rx="8" fill="#134e4a"/>
+  <text x="174" y="414" font-family="Inter, sans-serif" font-size="8" font-weight="700" fill="#99f6e4" text-anchor="middle">LEITURA</text>
+  <text x="54" y="440" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Diagnóstico OAT / Saúde</text>
+  <text x="54" y="460" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">Lê apenas 16KB do Header</text>
+  <text x="54" y="475" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">(gstat -h). Impacto ZERO.</text>
+  <text x="54" y="532" font-family="Inter, sans-serif" font-size="10" fill="#99f6e4">Exige Parada? Não (Read-Only)</text>
+  <rect x="54" y="544" width="184" height="28" rx="8" fill="#14b8a6" fill-opacity="0.25" stroke="#5eead4"/>
+  <text x="146" y="562" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ccfbf1" text-anchor="middle">Diagnosticar OAT / Saúde</text>
+
+  <!-- Card 2: Pastel Sky -->
+  <rect x="266" y="394" width="212" height="190" rx="14" fill="url(#skyManage)" stroke="#7dd3fc" stroke-opacity="0.45"/>
+  <text x="280" y="416" font-family="monospace" font-size="10" font-weight="700" fill="#bae6fd">job_reindex_stats</text>
+  <rect x="372" y="403" width="54" height="16" rx="8" fill="#0c4a6e"/>
+  <text x="399" y="414" font-family="Inter, sans-serif" font-size="8" font-weight="700" fill="#bae6fd" text-anchor="middle">MÍNIMO</text>
+  <text x="280" y="440" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Recalcular Índices</text>
+  <text x="280" y="460" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">SET STATISTICS INDEX via</text>
+  <text x="280" y="475" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">isql sem travar tabelas.</text>
+  <text x="280" y="532" font-family="Inter, sans-serif" font-size="10" fill="#bae6fd">Exige Parada? Não (100% Online)</text>
+  <rect x="280" y="544" width="184" height="28" rx="8" fill="#0284c7" fill-opacity="0.25" stroke="#7dd3fc"/>
+  <text x="372" y="562" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#e0f2fe" text-anchor="middle">Recalcular Índices Online</text>
+
+  <!-- Card 3: Pastel Lavender -->
+  <rect x="492" y="394" width="212" height="190" rx="14" fill="url(#violetManage)" stroke="#c4b5fd" stroke-opacity="0.45"/>
+  <text x="506" y="416" font-family="monospace" font-size="10" font-weight="700" fill="#ddd6fe">job_linux_patches</text>
+  <rect x="600" y="403" width="52" height="16" rx="8" fill="#2e1065"/>
+  <text x="626" y="414" font-family="Inter, sans-serif" font-size="8" font-weight="700" fill="#ddd6fe" text-anchor="middle">SO LINUX</text>
+  <text x="506" y="440" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Tuning &amp; Patches Linux</text>
+  <text x="506" y="460" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">Audita noatime, swappiness=10,</text>
+  <text x="506" y="475" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">fstrim.timer e hold firebird*.</text>
+  <text x="506" y="532" font-family="Inter, sans-serif" font-size="10" fill="#ddd6fe">Exige Parada? Não (Online)</text>
+  <rect x="506" y="544" width="184" height="28" rx="8" fill="#7c3aed" fill-opacity="0.25" stroke="#c4b5fd"/>
+  <text x="598" y="562" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ede9fe" text-anchor="middle">Auditar / Otimizar Linux</text>
+
+  <!-- Card 4: Warm Amber (Medium I/O) -->
+  <rect x="718" y="394" width="212" height="190" rx="14" fill="url(#amberIo)" stroke="#f97316" stroke-width="1.5"/>
+  <text x="732" y="416" font-family="monospace" font-size="10" font-weight="700" fill="#fdba74">job_clean_sweep</text>
+  <rect x="822" y="403" width="60" height="16" rx="8" fill="#7c2d12"/>
+  <text x="852" y="414" font-family="Inter, sans-serif" font-size="8" font-weight="700" fill="#fed7aa" text-anchor="middle">ALTO I/O</text>
+  <text x="732" y="440" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffedd5">Sweep Manual (gfix)</text>
+  <text x="732" y="460" font-family="Inter, sans-serif" font-size="10" fill="#fed7aa">Limpa backversions antigas</text>
+  <text x="732" y="475" font-family="Inter, sans-serif" font-size="10" fill="#fed7aa">e avança OIT. Alto uso disco.</text>
+  <text x="732" y="532" font-family="Inter, sans-serif" font-size="10" fill="#fb923c">Recomendado: Fora do Pico</text>
+  <rect x="732" y="544" width="184" height="28" rx="8" fill="#ea580c" fill-opacity="0.35" stroke="#fb923c"/>
+  <text x="824" y="562" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffedd5" text-anchor="middle">Executar gfix -sweep</text>
+
+  <!-- Card 5: HOT CRIMSON (Critical Downtime) -->
+  <rect x="944" y="394" width="216" height="190" rx="14" fill="url(#crimsonHot)" stroke="#ef4444" stroke-width="2"/>
+  <text x="958" y="416" font-family="monospace" font-size="10" font-weight="700" fill="#fca5a5">job_full_rebuild</text>
+  <rect x="1044" y="402" width="102" height="18" rx="9" fill="#ef4444"/>
+  <text x="1095" y="414" font-family="Inter, sans-serif" font-size="8" font-weight="800" fill="#ffffff" text-anchor="middle">CRÍTICO • PARADA</text>
+  <text x="958" y="440" font-family="Inter, sans-serif" font-size="13" font-weight="800" fill="#ffe4e6">Ciclo Rebuild Completo</text>
+  <text x="958" y="460" font-family="Inter, sans-serif" font-size="10" fill="#fecdd3">gfix -shut full &rarr; gbak -b &rarr;</text>
+  <text x="958" y="475" font-family="Inter, sans-serif" font-size="10" fill="#fecdd3">gbak -c &rarr; gfix -online.</text>
+  <rect x="958" y="490" width="188" height="22" rx="6" fill="#450a0a" stroke="#f87171"/>
+  <text x="968" y="505" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#fecaca">☑ Autorizar Parada (Shutdown)</text>
+  <text x="958" y="532" font-family="Inter, sans-serif" font-size="10" font-weight="800" fill="#f87171">Exige Parada? SIM (Derruba ERP)</text>
+  <rect x="958" y="544" width="188" height="28" rx="8" fill="#dc2626"/>
+  <text x="1052" y="562" font-family="Inter, sans-serif" font-size="11" font-weight="800" fill="#ffffff" text-anchor="middle">⚠️ Executar Full Rebuild</text>
+</svg>

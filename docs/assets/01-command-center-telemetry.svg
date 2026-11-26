@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#152238"/>
+      <stop offset="60%" stop-color="#0b101d"/>
+      <stop offset="100%" stop-color="#080c16"/>
+    </linearGradient>
+    <linearGradient id="pastelMint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#132a2e"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="pastelSky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#13253a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="pastelLavender" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1b3a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="warmCard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2c1d19"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="720" rx="16" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- Top Navbar -->
+  <rect x="0" y="0" width="1200" height="62" rx="16" fill="#0b1120" opacity="0.95"/>
+  <rect x="24" y="13" width="36" height="36" rx="10" fill="#5eead4"/>
+  <text x="42" y="37" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#0f172a" text-anchor="middle">DB</text>
+  <text x="74" y="30" font-family="Inter, sans-serif" font-size="17" font-weight="800" fill="#ffffff">InfraMGNT</text>
+  <rect x="174" y="15" width="176" height="20" rx="10" fill="#134e4a" stroke="#5eead4" stroke-width="1"/>
+  <text x="262" y="29" font-family="monospace" font-size="10" font-weight="700" fill="#99f6e4" text-anchor="middle">CENTRAL DE COMANDO FIREBIRD</text>
+  <text x="74" y="48" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Monitoramento Firebird + rfunc.so, Telemetria RAM, Backup Quente (gbak -b -g) &amp; Laboratório Offline</text>
+
+  <!-- Navbar Right Pills -->
+  <rect x="740" y="17" width="160" height="28" rx="14" fill="#0f172a" stroke="#334155"/>
+  <circle cx="756" cy="31" r="5" fill="#5eead4"/>
+  <text x="768" y="35" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#ccfbf1">Stream Ativo (WS)</text>
+
+  <rect x="912" y="17" width="136" height="28" rx="8" fill="#ea580c"/>
+  <text x="980" y="35" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">⚡ Pipeline 1-Clique</text>
+
+  <rect x="1060" y="17" width="114" height="28" rx="8" fill="#1e1b4b" stroke="#a78bfa"/>
+  <text x="1117" y="35" font-family="monospace" font-size="11" font-weight="600" fill="#ddd6fe" text-anchor="middle">🔒 admin • Sair</text>
+
+  <!-- 4 Top Pastel KPI Cards -->
+  <!-- KPI 1 -->
+  <rect x="24" y="78" width="276" height="82" rx="14" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.35"/>
+  <text x="40" y="100" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#99f6e4">SERVIDORES FIREBIRD</text>
+  <text x="40" y="128" font-family="Inter, sans-serif" font-size="24" font-weight="800" fill="#ffffff">2 / 2</text>
+  <text x="40" y="147" font-family="Inter, sans-serif" font-size="11" fill="#5eead4">Todos os servidores online (1.8 ms)</text>
+
+  <!-- KPI 2 -->
+  <rect x="316" y="78" width="276" height="82" rx="14" fill="url(#pastelSky)" stroke="#7dd3fc" stroke-opacity="0.35"/>
+  <text x="332" y="100" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#bae6fd">MEMÓRIA BANCO PRODUÇÃO</text>
+  <text x="332" y="128" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#ffffff">6.540 MB (20.0%)</text>
+  <text x="332" y="147" font-family="Inter, sans-serif" font-size="11" fill="#7dd3fc">92 sessões ERP ativas na porta 3050</text>
+
+  <!-- KPI 3 -->
+  <rect x="608" y="78" width="276" height="82" rx="14" fill="url(#pastelLavender)" stroke="#c4b5fd" stroke-opacity="0.35"/>
+  <text x="624" y="100" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ddd6fe">SERVIÇOS &amp; BIBLIOTECA RFUNC</text>
+  <text x="624" y="128" font-family="Inter, sans-serif" font-size="19" font-weight="800" fill="#5eead4">Firebird &amp; rfunc.so OK</text>
+  <text x="624" y="147" font-family="Inter, sans-serif" font-size="11" fill="#c4b5fd">fbguard ativo • 98 funções UDF</text>
+
+  <!-- KPI 4 -->
+  <rect x="900" y="78" width="276" height="82" rx="14" fill="#131c31" stroke="#fcd34d" stroke-opacity="0.35"/>
+  <text x="916" y="100" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#fde68a">ÚLTIMA AUDITORIA / JOB</text>
+  <text x="916" y="126" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#ffffff">Pipeline 1-Clique Homologado</text>
+  <text x="916" y="147" font-family="Inter, sans-serif" font-size="11" fill="#5eead4">0 erros no gfix • Fila livre</text>
+
+  <!-- Section 1: Hosts Row -->
+  <rect x="24" y="174" width="1152" height="142" rx="16" fill="#11192c" stroke="#263452"/>
+  <circle cx="44" cy="196" r="5" fill="#5eead4"/>
+  <text x="58" y="200" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#ffffff">1. Servidores Firebird Conectados (Hosts SSH)</text>
+
+  <!-- Host A Card (Warm Border for Production) -->
+  <rect x="40" y="214" width="550" height="88" rx="12" fill="url(#warmCard)" stroke="#f97316" stroke-opacity="0.55"/>
+  <rect x="54" y="226" width="96" height="18" rx="9" fill="#7c2d12" stroke="#fb923c"/>
+  <text x="102" y="238" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#fed7aa" text-anchor="middle">BANCO PRODUÇÃO</text>
+  <rect x="158" y="226" width="66" height="18" rx="9" fill="#134e4a" stroke="#5eead4"/>
+  <text x="191" y="238" font-family="monospace" font-size="9" font-weight="700" fill="#99f6e4" text-anchor="middle">SSH REAL</text>
+  <circle cx="484" cy="235" r="4" fill="#5eead4"/>
+  <text x="494" y="239" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#99f6e4">Online (1.8 ms)</text>
+  <text x="54" y="264" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Servidor A - Produção (Venosan)</text>
+  <text x="290" y="264" font-family="monospace" font-size="11" fill="#94a3b8">root@192.168.10.10:22 • /dados/venosan_prod.fdb</text>
+  <rect x="54" y="274" width="108" height="18" rx="5" fill="#134e4a"/>
+  <text x="108" y="286" font-family="monospace" font-size="10" fill="#99f6e4" text-anchor="middle">firebird: active</text>
+  <rect x="424" y="272" width="150" height="22" rx="6" fill="#0d9488" fill-opacity="0.3" stroke="#5eead4"/>
+  <text x="499" y="287" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#ccfbf1" text-anchor="middle">📊 Telemetria &amp; Gráficos</text>
+
+  <!-- Host B Card (Pastel Sky for Test) -->
+  <rect x="610" y="214" width="550" height="88" rx="12" fill="url(#pastelSky)" stroke="#7dd3fc" stroke-opacity="0.45"/>
+  <rect x="624" y="226" width="118" height="18" rx="9" fill="#0c4a6e" stroke="#7dd3fc"/>
+  <text x="683" y="238" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#bae6fd" text-anchor="middle">TESTE / HOMOLOGAÇÃO</text>
+  <circle cx="1054" cy="235" r="4" fill="#5eead4"/>
+  <text x="1064" y="239" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#99f6e4">Online (2.4 ms)</text>
+  <text x="624" y="264" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#ffffff">Servidor B - Teste / Validação</text>
+  <text x="855" y="264" font-family="monospace" font-size="11" fill="#94a3b8">root@192.168.10.20:22 • /dados_teste/valida.fdb</text>
+  <rect x="624" y="274" width="108" height="18" rx="5" fill="#134e4a"/>
+  <text x="678" y="286" font-family="monospace" font-size="10" fill="#99f6e4" text-anchor="middle">firebird: active</text>
+  <rect x="994" y="272" width="150" height="22" rx="6" fill="#0c4a6e" stroke="#7dd3fc"/>
+  <text x="1069" y="287" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#e0f2fe" text-anchor="middle">🔍 Inspecionar (gstat -h)</text>
+
+  <!-- Section 2: Telemetry Charts & Services Matrix -->
+  <rect x="24" y="330" width="1152" height="368" rx="16" fill="#11192c" stroke="#263452"/>
+  <circle cx="44" cy="354" r="5" fill="#7dd3fc"/>
+  <text x="58" y="358" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#ffffff">2. Central de Telemetria do Servidor &amp; Saúde do Banco (Tempo Real)</text>
+  <rect x="525" y="341" width="210" height="22" rx="11" fill="#0c4a6e" stroke="#7dd3fc"/>
+  <text x="630" y="356" font-family="monospace" font-size="10" font-weight="700" fill="#bae6fd" text-anchor="middle">Servidor A - Produção (192.168.10.10)</text>
+
+  <!-- Chart 1: Memory Doughnut -->
+  <rect x="40" y="376" width="356" height="196" rx="14" fill="url(#pastelSky)" stroke="#7dd3fc" stroke-opacity="0.35"/>
+  <text x="56" y="398" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#bae6fd">CONSUMO DE MEMÓRIA RAM (32 GB)</text>
+  <!-- Doughnut Rings -->
+  <circle cx="132" cy="476" r="52" fill="none" stroke="#1e293b" stroke-width="18"/>
+  <circle cx="132" cy="476" r="52" fill="none" stroke="#7dd3fc" stroke-width="18" stroke-dasharray="85 240" stroke-dashoffset="0"/>
+  <circle cx="132" cy="476" r="52" fill="none" stroke="#6ee7b7" stroke-width="18" stroke-dasharray="135 190" stroke-dashoffset="-85"/>
+  <circle cx="132" cy="476" r="52" fill="none" stroke="#fdba74" stroke-width="18" stroke-dasharray="35 290" stroke-dashoffset="-220"/>
+  <circle cx="132" cy="476" r="52" fill="none" stroke="#c4b5fd" stroke-width="18" stroke-dasharray="70 255" stroke-dashoffset="-255"/>
+  <text x="132" y="473" font-family="monospace" font-size="13" font-weight="800" fill="#ffffff" text-anchor="middle">6.5 GB</text>
+  <text x="132" y="489" font-family="Inter, sans-serif" font-size="9" fill="#7dd3fc" text-anchor="middle">Firebird RSS</text>
+  <!-- Legend -->
+  <rect x="210" y="428" width="10" height="10" rx="2" fill="#7dd3fc"/>
+  <text x="226" y="437" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">Firebird RSS: 6.540 MB</text>
+  <rect x="210" y="452" width="10" height="10" rx="2" fill="#6ee7b7"/>
+  <text x="226" y="461" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">Page Cache SO: 14.200 MB</text>
+  <rect x="210" y="476" width="10" height="10" rx="2" fill="#fdba74"/>
+  <text x="226" y="485" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">Processos SO: 2.850 MB</text>
+  <rect x="210" y="500" width="10" height="10" rx="2" fill="#c4b5fd"/>
+  <text x="226" y="509" font-family="Inter, sans-serif" font-size="11" fill="#e2e8f0">RAM Livre: 9.178 MB</text>
+
+  <!-- Chart 2: Table Density & Backversions Bar Chart -->
+  <rect x="412" y="376" width="430" height="196" rx="14" fill="url(#pastelLavender)" stroke="#c4b5fd" stroke-opacity="0.35"/>
+  <text x="428" y="398" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ddd6fe">DENSIDADE DE TABELAS VS BACKVERSIONS (LIXO)</text>
+  <text x="730" y="398" font-family="monospace" font-size="10" font-weight="700" fill="#6ee7b7">Gap Next-OAT: 895</text>
+  <!-- Bars -->
+  <rect x="448" y="425" width="38" height="105" rx="4" fill="#c4b5fd"/>
+  <rect x="488" y="518" width="18" height="12" rx="3" fill="#fb923c"/>
+  <text x="476" y="544" font-family="monospace" font-size="9" fill="#94a3b8" text-anchor="middle">MOV_EST</text>
+
+  <rect x="548" y="442" width="38" height="88" rx="4" fill="#c4b5fd"/>
+  <rect x="588" y="522" width="18" height="8" rx="3" fill="#fb923c"/>
+  <text x="576" y="544" font-family="monospace" font-size="9" fill="#94a3b8" text-anchor="middle">ITENS_PED</text>
+
+  <rect x="648" y="485" width="38" height="45" rx="4" fill="#c4b5fd"/>
+  <rect x="688" y="526" width="18" height="4" rx="2" fill="#fb923c"/>
+  <text x="676" y="544" font-family="monospace" font-size="9" fill="#94a3b8" text-anchor="middle">FINANC</text>
+
+  <rect x="748" y="488" width="38" height="42" rx="4" fill="#c4b5fd"/>
+  <rect x="788" y="526" width="18" height="4" rx="2" fill="#fb923c"/>
+  <text x="776" y="544" font-family="monospace" font-size="9" fill="#94a3b8" text-anchor="middle">PEDIDOS</text>
+
+  <text x="428" y="564" font-family="monospace" font-size="10" fill="#cbd5e1">OIT: 4819200  •  OAT: 4819215  •  Next TX: 4820110  •  Page Size: 16384</text>
+
+  <!-- Chart 3: Server Saturation Horizontal Bars -->
+  <rect x="858" y="376" width="302" height="196" rx="14" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.35"/>
+  <text x="874" y="398" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#99f6e4">SATURAÇÃO DO SERVIDOR</text>
+  <text x="1085" y="398" font-family="monospace" font-size="10" font-weight="700" fill="#5eead4">Base: 6.84 GB</text>
+
+  <text x="874" y="432" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">CPU Host (22%)</text>
+  <rect x="975" y="422" width="165" height="12" rx="6" fill="#1e293b"/>
+  <rect x="975" y="422" width="42" height="12" rx="6" fill="#6ee7b7"/>
+
+  <text x="874" y="462" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">RAM Banco (20%)</text>
+  <rect x="975" y="452" width="165" height="12" rx="6" fill="#1e293b"/>
+  <rect x="975" y="452" width="38" height="12" rx="6" fill="#7dd3fc"/>
+
+  <text x="874" y="492" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">Disco /dados (37%)</text>
+  <rect x="975" y="482" width="165" height="12" rx="6" fill="#1e293b"/>
+  <rect x="975" y="482" width="66" height="12" rx="6" fill="#c4b5fd"/>
+
+  <text x="874" y="522" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">Porta 3050 (92 con)</text>
+  <rect x="975" y="512" width="165" height="12" rx="6" fill="#1e293b"/>
+  <rect x="975" y="512" width="95" height="12" rx="6" fill="#fde047"/>
+
+  <text x="874" y="562" font-family="monospace" font-size="10" fill="#99f6e4">Livre: 316 GB  •  Porta 3050: 92 sessões</text>
+
+  <!-- Bottom Row: 5 Critical Correlated Services Cards (Firebird, rfunc.so, fbguard, 3050, fstrim) -->
+  <text x="40" y="596" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#99f6e4">STATUS DOS SERVIÇOS CRÍTICOS DO BANCO &amp; BIBLIOTECAS CORRELATAS (FIREBIRD, RFUNC.SO, FBGUARD, GDS_DB 3050, FSTRIM)</text>
+
+  <!-- Service 1 -->
+  <rect x="40" y="608" width="216" height="76" rx="10" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.4"/>
+  <circle cx="54" cy="626" r="4" fill="#5eead4"/>
+  <text x="64" y="630" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">Firebird Engine</text>
+  <text x="54" y="646" font-family="monospace" font-size="10" fill="#5eead4">firebird-superserver.service</text>
+  <text x="54" y="668" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">PID 1428 • RSS 6540 MB • Ativo</text>
+
+  <!-- Service 2: rfunc.so -->
+  <rect x="266" y="608" width="216" height="76" rx="10" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.4"/>
+  <circle cx="280" cy="626" r="4" fill="#5eead4"/>
+  <text x="290" y="630" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">UDF rfunc (rfunc.so)</text>
+  <text x="280" y="646" font-family="monospace" font-size="10" fill="#5eead4">/opt/firebird/UDF/rfunc.so</text>
+  <text x="280" y="668" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">ELF 64-bit • firebird:firebird OK</text>
+
+  <!-- Service 3: fbguard -->
+  <rect x="492" y="608" width="216" height="76" rx="10" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.4"/>
+  <circle cx="506" cy="626" r="4" fill="#5eead4"/>
+  <text x="516" y="630" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">Firebird Guardian</text>
+  <text x="506" y="646" font-family="monospace" font-size="10" fill="#5eead4">fbguard daemon (-forever)</text>
+  <text x="506" y="668" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">Auto-restart ativo e monitorando</text>
+
+  <!-- Service 4: Port 3050 -->
+  <rect x="718" y="608" width="216" height="76" rx="10" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.4"/>
+  <circle cx="732" cy="626" r="4" fill="#5eead4"/>
+  <text x="742" y="630" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">Socket GDS_DB (3050)</text>
+  <text x="732" y="646" font-family="monospace" font-size="10" fill="#5eead4">0.0.0.0:3050/TCP (LISTEN)</text>
+  <text x="732" y="668" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">92 sessões ERP estabelecidas</text>
+
+  <!-- Service 5: fstrim & noatime -->
+  <rect x="944" y="608" width="216" height="76" rx="10" fill="url(#pastelMint)" stroke="#5eead4" stroke-opacity="0.4"/>
+  <circle cx="958" cy="626" r="4" fill="#5eead4"/>
+  <text x="968" y="630" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#ffffff">SSD Trim &amp; Kernel I/O</text>
+  <text x="958" y="646" font-family="monospace" font-size="10" fill="#5eead4">fstrim.timer • noatime</text>
+  <text x="958" y="668" font-family="Inter, sans-serif" font-size="10" fill="#cbd5e1">vm.swappiness=10 • firebird hold</text>
+</svg>
