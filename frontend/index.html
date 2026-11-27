@@ -68,6 +68,13 @@
           <span>📖 Guia &amp; Ajuda</span>
         </a>
 
+        <!-- Toggle Demo Mode (Dados Fictícios) -->
+        <button onclick="toggleDemoMode()" id="btn-demo-mode"
+          class="ro-hide-btn px-3 py-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/30 text-violet-200 border border-violet-400/35 text-xs font-semibold flex items-center gap-1.5 transition"
+          title="Ativar/Desativar Modo Demonstração com servidores e métricas fictícias">
+          <span>🎭 Demonstração</span>
+        </button>
+
         <!-- Toggle TV / NOC Wallboard Mode -->
         <button onclick="toggleTvNocMode()" id="btn-tv-mode"
           class="px-3 py-2 rounded-xl bg-sky-400/15 hover:bg-sky-400/25 text-sky-100 border border-sky-300/30 text-xs font-semibold flex items-center gap-1.5 transition"
@@ -111,8 +118,25 @@
   <!-- Main Content Container -->
   <main class="max-w-[1520px] mx-auto px-4 sm:px-6 py-6 space-y-6">
 
+    <!-- Top Navigation Tabs (Painel Operacional vs Reports 00:00) -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+      <div class="flex items-center gap-2">
+        <button onclick="selectMainTab('dashboard')" id="main-tab-btn-dashboard"
+          class="px-4 py-2 rounded-xl bg-[#00a896] text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition">
+          📊 Painel Operacional
+        </button>
+        <button onclick="selectMainTab('reports')" id="main-tab-btn-reports"
+          class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs transition flex items-center gap-1.5">
+          <span>📄 Reports (Relatório Diário 00:00)</span>
+        </button>
+      </div>
+      <span id="demo-active-pill" class="hidden px-3 py-1 rounded-full bg-violet-500/20 text-violet-200 border border-violet-400/40 text-[11px] font-mono-code font-bold">
+        🎭 MODO DEMONSTRAÇÃO ATIVO (DADOS FICTÍCIOS)
+      </span>
+    </div>
+
     <!-- Top KPI Summary Row (Venosan Pastel Cards) -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <section class="main-dashboard-block grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="pastel-card-safe rounded-2xl p-4 flex items-center justify-between">
         <div>
           <p class="text-[11px] font-semibold text-teal-200/80 uppercase tracking-wider">Servidores Firebird</p>
@@ -178,7 +202,7 @@
     </section>
 
     <!-- 1. Painel de Servidores (Hosts) -->
-    <section class="pastel-panel rounded-2xl p-5">
+    <section class="main-dashboard-block pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-base font-bold text-white flex items-center gap-2">
@@ -204,8 +228,16 @@
       </div>
     </section>
 
+    <!-- Empty State de Telemetria quando não há servidores -->
+    <section id="telemetry-empty-state" class="main-dashboard-block pastel-panel rounded-2xl p-8 text-center space-y-3">
+      <p class="text-sm font-bold text-white">Nenhuma métrica exibida ainda</p>
+      <p class="text-xs text-slate-400 max-w-xl mx-auto">
+        O painel inicia zerado para não misturar dados fictícios com seu ambiente real. Cadastre um servidor Firebird real acima ou clique em <strong>🎭 Demonstração</strong> para testar com dados simulados.
+      </p>
+    </section>
+
     <!-- 2. Central de Telemetria Visual & Gráficos Temporais (NOC TV Wallboard Core) -->
-    <section class="pastel-panel rounded-2xl p-5 space-y-5">
+    <section id="telemetry-section" class="main-dashboard-block hidden pastel-panel rounded-2xl p-5 space-y-5">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2.5">
@@ -448,40 +480,48 @@
       </div>
     </section>
 
-    <!-- 2.5 Módulo de Relatório Diário (24h) de Inteligência do Banco (HTML & Movimentação de Tabelas) -->
-    <section class="pastel-panel rounded-2xl p-5 space-y-4">
+    <!-- 2.5 Módulo Reports (Relatório Diário 00:00 — Banco + Backup em HTML) -->
+    <section id="tab-panel-reports" class="hidden pastel-panel rounded-2xl p-5 space-y-5">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2.5">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-              Relatório Diário (24h) — Movimentação de Registros, Crescimento & Saúde em HTML
+              Reports — Relatório Diário Consolidado (00:00)
             </h2>
             <span
               class="text-[11px] font-mono-code px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-200 border border-amber-400/30 font-semibold">
-              Geração Automática a cada 24h
+              Geração Automática às 00:00
             </span>
           </div>
           <p class="text-xs text-slate-300/80 mt-0.5">
-            Balanço consolidado das últimas 24 horas: quantos registros foram adicionados, quantos foram removidos, qual
-            tabela mais cresceu e exportação do laudo executivo em <strong>.HTML</strong>.
+            Apurado diário falando sobre o <strong>banco</strong> (crescimento, tabelas, RAM, transações) e sobre os <strong>backups</strong> (execuções, status e artefatos), gerado em <strong>.HTML</strong> para download.
           </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <button onclick="generateDailyReportNow()" id="btn-gen-daily-report"
             class="ro-hide-btn px-3.5 py-2 rounded-xl bg-[#00a896]/25 hover:bg-[#00a896] text-teal-100 hover:text-white border border-teal-300/40 text-xs font-bold flex items-center gap-1.5 transition">
-            <span>⚡ Gerar Relatório 24h Agora</span>
+            <span>⚡ Gerar Relatório Agora</span>
           </button>
-          <a id="btn-open-latest-html" href="/api/reports/1/html" target="_blank"
+          <a id="btn-open-latest-html" href="#" target="_blank"
             class="px-3.5 py-2 rounded-xl bg-sky-400/20 hover:bg-sky-400 text-sky-100 hover:text-slate-950 border border-sky-300/40 text-xs font-bold flex items-center gap-1.5 transition">
             <span>🌐 Abrir Relatório HTML</span>
           </a>
-          <a id="btn-dl-latest-html" href="/api/reports/1/download" download
+          <a id="btn-dl-latest-html" href="#" download
             class="px-3.5 py-2 rounded-xl bg-violet-400/20 hover:bg-violet-400 text-violet-100 hover:text-slate-950 border border-violet-300/40 text-xs font-bold flex items-center gap-1.5 transition">
             <span>⬇️ Baixar .HTML</span>
           </a>
         </div>
+      </div>
+
+      <!-- Resumo de Backups 24h -->
+      <div class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div>
+          <span class="text-[10px] uppercase tracking-wider text-amber-300 font-bold block">Apurado de Backups (Últimas 24h)</span>
+          <p id="rep-backup-summary" class="text-slate-200 mt-0.5">Nenhum servidor/backup apurado ainda.</p>
+        </div>
+        <div id="rep-backup-counts" class="flex items-center gap-2 font-mono-code text-[11px]"></div>
       </div>
 
       <!-- 4 Daily Report Highlight KPIs -->
@@ -557,7 +597,7 @@
     </section>
 
     <!-- 3. Catálogo de Jobs de Backup/Restore (Left) + Console Web em Tempo Real (Right) [HIDDEN IN TV NOC MODE] -->
-    <section class="admin-only-section grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <section class="main-dashboard-block admin-only-section grid grid-cols-1 lg:grid-cols-12 gap-6">
 
       <!-- 3.1 Catálogo de Jobs (5 cols on lg) -->
       <div class="lg:col-span-5 pastel-panel rounded-2xl p-5 flex flex-col justify-between">
@@ -918,7 +958,7 @@
     </section>
 
     <!-- 4. Catálogo de Rotinas de Manutenção Preventiva & Otimização Linux [HIDDEN IN TV NOC MODE] -->
-    <section class="admin-only-section pastel-panel rounded-2xl p-5">
+    <section class="main-dashboard-block admin-only-section pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
         <div>
           <div class="flex items-center gap-2.5">
@@ -1109,7 +1149,7 @@
     </section>
 
     <!-- 5. Laboratório de Análise & Otimização Offline (.fdb / .fbk) [HIDDEN IN TV NOC MODE] -->
-    <section class="admin-only-section pastel-panel rounded-2xl p-5">
+    <section class="main-dashboard-block admin-only-section pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
         <div>
           <div class="flex items-center gap-2.5">
@@ -1216,7 +1256,7 @@
     </section>
 
     <!-- 5.5 Agendamentos Automáticos (Execução 24/7 mesmo deslogado) -->
-    <section class="pastel-panel rounded-2xl p-5 ro-hide-btn">
+    <section class="main-dashboard-block pastel-panel rounded-2xl p-5 ro-hide-btn">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-base font-bold text-white flex items-center gap-2">
@@ -1255,7 +1295,7 @@
     </section>
 
     <!-- 6. Histórico e Relatórios de Execução -->
-    <section class="pastel-panel rounded-2xl p-5">
+    <section class="main-dashboard-block pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-base font-bold text-white flex items-center gap-2">

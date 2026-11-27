@@ -251,13 +251,14 @@ async def scheduler_loop() -> None:
                     pass
 
             # -------------------------------------------------------------
-            # 2. Daily Intelligence 24h Report Check
+            # 2. Daily Intelligence 24h Report Check (runs at 00:00)
             # -------------------------------------------------------------
             day_key = now.strftime("%Y-%m-%d")
-            if day_key != last_report_day:
-                existing = list_daily_reports(limit=1)
+            if active_hosts and now.hour == 0 and now.minute <= 5 and day_key != last_report_day:
+                target_host = next((h for h in active_hosts if h.get("role") == "production"), active_hosts[0])
+                existing = list_daily_reports(host_id=target_host["id"], limit=1)
                 if not existing or not str(existing[0].get("created_at", "")).startswith(day_key):
-                    await generate_daily_24h_report(host_id=1)
+                    await generate_daily_24h_report(host_id=target_host["id"])
                 last_report_day = day_key
 
             # -------------------------------------------------------------

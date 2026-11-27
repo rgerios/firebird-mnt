@@ -1155,6 +1155,126 @@ def download_execution_log(exec_id: int):
     )
 
 
+@router.post("/api/demo/enable", dependencies=[Depends(require_auth)])
+async def enable_demo_mode() -> Dict[str, Any]:
+    ts = now_iso()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM hosts WHERE is_simulated = 1")
+        existing = [r["id"] for r in cur.fetchall()]
+        if not existing:
+            cur.execute(
+                """
+                INSERT INTO hosts (
+                    name, role, hostname, port, username, auth_type, secret,
+                    fb_user, fb_password, default_db_path, default_backup_dir,
+                    is_simulated, last_status, last_latency_ms, firebird_service_status,
+                    firebird_version, last_checked_at, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "Servidor A - Produção (Demo)",
+                    "production",
+                    "192.168.10.10",
+                    22,
+                    "root",
+                    "key",
+                    "~/.ssh/id_rsa",
+                    "SYSDBA",
+                    "masterkey",
+                    "/dados/venosan_prod.fdb",
+                    "/backups",
+                    1,
+                    "online",
+                    1.8,
+                    "active",
+                    "Firebird 3.0.10 (Simulado)",
+                    ts,
+                    ts,
+                ),
+            )
+            prod_id = cur.lastrowid
+            cur.execute(
+                """
+                INSERT INTO hosts (
+                    name, role, hostname, port, username, auth_type, secret,
+                    fb_user, fb_password, default_db_path, default_backup_dir,
+                    is_simulated, last_status, last_latency_ms, firebird_service_status,
+                    firebird_version, last_checked_at, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "Servidor B - Teste / Validação (Demo)",
+                    "testing",
+                    "192.168.10.20",
+                    22,
+                    "root",
+                    "key",
+                    "~/.ssh/id_rsa",
+                    "SYSDBA",
+                    "masterkey",
+                    "/dados_teste/venosan_valida.fdb",
+                    "/backups/recebidos",
+                    1,
+                    "online",
+                    2.4,
+                    "active",
+                    "Firebird 3.0.10 (Simulado)",
+                    ts,
+                    ts,
+                ),
+            )
+            test_id = cur.lastrowid
+            cur.execute(
+                """
+                INSERT INTO schedules (
+                    name, cron_expr, prod_host_id, test_host_id,
+                    compression, compression_location, no_gc, run_restore, run_gfix,
+                    retention_days, webhook_url, enabled, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "Rotina Noturna Demo — Offload Streaming",
+                    "0 22 * * *",
+                    prod_id,
+                    test_id,
+                    "zstd",
+                    "middle_stream",
+                    1,
+                    1,
+                    1,
+                    7,
+                    "",
+                    1,
+                    ts,
+                ),
+            )
+        else:
+            prod_id = existing[0]
+
+    await generate_daily_24h_report(host_id=prod_id)
+    return {"demo_active": True}
+
+
+@router.post("/api/demo/disable", dependencies=[Depends(require_auth)])
+def disable_demo_mode() -> Dict[str, Any]:
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM hosts WHERE is_simulated = 1")
+        sim_ids = [r["id"] for r in cur.fetchall()]
+        if sim_ids:
+            placeholders = ",".join("?" for _ in sim_ids)
+            cur.execute(f"DELETE FROM telemetry_samples WHERE host_id IN ({placeholders})", sim_ids)
+            cur.execute(f"DELETE FROM table_snapshots WHERE host_id IN ({placeholders})", sim_ids)
+            cur.execute(f"DELETE FROM daily_reports WHERE host_id IN ({placeholders})", sim_ids)
+            cur.execute(
+                f"DELETE FROM schedules WHERE prod_host_id IN ({placeholders}) OR test_host_id IN ({placeholders})",
+                sim_ids + sim_ids,
+            )
+            cur.execute(f"DELETE FROM hosts WHERE id IN ({placeholders})", sim_ids)
+    return {"demo_active": False, "removed_hosts": len(sim_ids)}
+
+
 @router.post("/api/console/clear", dependencies=[Depends(require_auth)])
 async def clear_console() -> Dict[str, Any]:
     await ws_manager.clear_history()

@@ -62,6 +62,23 @@ def _build_report_html(rep: Dict[str, Any]) -> str:
         </tr>
         """
 
+    bkp = rep.get("backup_summary_24h", {})
+    bkp_rows_html = ""
+    for j in bkp.get("recent_jobs", []):
+        st = j.get("status", "unknown")
+        st_color = "#34d399" if st == "success" else "#fcd34d" if st == "warning" else "#fb7185"
+        bkp_rows_html += f"""
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:9px 12px;font-family:monospace;color:#cbd5e1;">#{j.get('id')}</td>
+          <td style="padding:9px 12px;color:#fff;font-weight:600;">{j.get('job_title')}</td>
+          <td style="padding:9px 12px;font-family:monospace;color:{st_color};font-weight:700;">{st.upper()}</td>
+          <td style="padding:9px 12px;font-family:monospace;color:#94a3b8;">{j.get('duration_seconds', 0):.1f}s</td>
+          <td style="padding:9px 12px;color:#cbd5e1;">{j.get('summary', '')}</td>
+        </tr>
+        """
+    if not bkp_rows_html:
+        bkp_rows_html = '<tr><td colspan="5" style="padding:14px;text-align:center;color:#94a3b8;">Nenhuma execução de backup registrada nas últimas 24 horas.</td></tr>'
+
     services_html = ""
     for s in rep.get("services_health", []):
         ok = s.get("status") == "active"
@@ -240,6 +257,33 @@ def _build_report_html(rep: Dict[str, Any]) -> str:
       {services_html}
     </div>
 
+    <!-- Backup & Validation Summary -->
+    <h2 style="font-size:14px;text-transform:uppercase;letter-spacing:0.8px;color:#fcd34d;margin:26px 0 10px 0;">
+      4. Resumo de Backups &amp; Validações (Últimas 24h)
+    </h2>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;font-size:12px;">
+      <span style="background:#0f1e2e;border:1px solid #1e293b;border-radius:10px;padding:8px 14px;">Total: <strong>{bkp.get('total_jobs', 0)}</strong></span>
+      <span style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:8px 14px;color:#6ee7b7;">Sucesso: <strong>{bkp.get('success_jobs', 0)}</strong></span>
+      <span style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:8px 14px;color:#fcd34d;">Alertas: <strong>{bkp.get('warning_jobs', 0)}</strong></span>
+      <span style="background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.3);border-radius:10px;padding:8px 14px;color:#fda4af;">Falhas: <strong>{bkp.get('error_jobs', 0)}</strong></span>
+    </div>
+    <div style="overflow-x:auto;border:1px solid #1e293b;border-radius:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>#ID</th>
+            <th>Rotina / Job</th>
+            <th>Status</th>
+            <th>Duração</th>
+            <th>Resumo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bkp_rows_html}
+        </tbody>
+      </table>
+    </div>
+
     <div style="margin-top:26px;padding-top:14px;border-top:1px solid #1e293b;display:flex;justify-content:space-between;font-size:11px;color:#64748b;font-family:monospace;">
       <span>Gerado automaticamente pelo Firebird Command Center (Venosan Brasil)</span>
       <span>Timestamp: {rep['created_at']}</span>
@@ -348,6 +392,24 @@ async def generate_daily_24h_report(host_id: int = 1) -> Dict[str, Any]:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS cnt FROM executions WHERE status = 'success'")
         ok_jobs = max(1, cur.fetchone()["cnt"])
+        yesterday_iso = yesterday_dt.isoformat(timespec="seconds")
+        cur.execute(
+            """
+            SELECT id, job_type, job_title, status, duration_seconds, summary, artifact_file, created_at
+              FROM executions
+             WHERE created_at >= ?
+             ORDER BY id DESC
+             LIMIT 20
+            """,
+            (yesterday_iso,),
+        )
+        recent_execs = [dict_from_row(r) for r in cur.fetchall() if r is not None]
+
+    bkp_total = len(recent_execs)
+    bkp_success = sum(1 for x in recent_execs if x.get("status") == "success")
+    bkp_warning = sum(1 for x in recent_execs if x.get("status") == "warning")
+    bkp_error = sum(1 for x in recent_execs if x.get("status") == "error")
+    last_bkp = recent_execs[0] if recent_execs else None
 
     report_payload: Dict[str, Any] = {
         "host_id": host["id"],
@@ -367,6 +429,17 @@ async def generate_daily_24h_report(host_id: int = 1) -> Dict[str, Any]:
         "top_growing_mb": top_tbl["delta_mb"],
         "tables_breakdown": tables_breakdown,
         "services_health": info.get("services", []),
+        "backup_summary_24h": {
+            "total_jobs": bkp_total,
+            "success_jobs": bkp_success,
+            "warning_jobs": bkp_warning,
+            "error_jobs": bkp_error,
+            "last_backup_status": last_bkp.get("status") if last_bkp else "none",
+            "last_backup_at": last_bkp.get("created_at") if last_bkp else None,
+            "last_backup_artifact": last_bkp.get("artifact_file") if last_bkp else "",
+            "last_backup_summary": last_bkp.get("summary") if last_bkp else "Nenhum backup nas últimas 24h",
+            "recent_jobs": recent_execs[:10],
+        },
         "telemetry_24h": {
             "firebird_rss_mb": mem.get("firebird_rss_mb", 6540.0),
             "firebird_pct": mem.get("firebird_pct", 20.0),

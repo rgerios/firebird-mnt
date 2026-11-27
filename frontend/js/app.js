@@ -221,6 +221,79 @@ async function deleteUserAccount(userId) {
   }
 }
 
+function selectMainTab(tab) {
+  const dashBlocks = document.querySelectorAll(".main-dashboard-block");
+  const repPanel = document.getElementById("tab-panel-reports");
+  const btnDash = document.getElementById("main-tab-btn-dashboard");
+  const btnRep = document.getElementById("main-tab-btn-reports");
+
+  if (tab === "reports") {
+    dashBlocks.forEach((el) => el.classList.add("hidden"));
+    if (repPanel) repPanel.classList.remove("hidden");
+    if (btnDash) {
+      btnDash.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs transition";
+    }
+    if (btnRep) {
+      btnRep.className = "px-4 py-2 rounded-xl bg-[#00a896] text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition flex items-center gap-1.5";
+    }
+    loadDailyReports();
+  } else {
+    dashBlocks.forEach((el) => el.classList.remove("hidden"));
+    if (repPanel) repPanel.classList.add("hidden");
+    if (btnDash) {
+      btnDash.className = "px-4 py-2 rounded-xl bg-[#00a896] text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition";
+    }
+    if (btnRep) {
+      btnRep.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs transition flex items-center gap-1.5";
+    }
+    updateEmptyTelemetryState();
+  }
+}
+
+function updateEmptyTelemetryState() {
+  const hasHosts = hostsState.length > 0;
+  const isDemo = hostsState.some((h) => h.is_simulated);
+  const onDashboard = document.getElementById("tab-panel-reports")?.classList.contains("hidden");
+
+  const telSec = document.getElementById("telemetry-section");
+  const telEmpty = document.getElementById("telemetry-empty-state");
+  if (onDashboard) {
+    if (telSec) telSec.classList.toggle("hidden", !hasHosts);
+    if (telEmpty) telEmpty.classList.toggle("hidden", hasHosts);
+  }
+
+  const demoBtn = document.getElementById("btn-demo-mode");
+  const demoPill = document.getElementById("demo-active-pill");
+  if (demoBtn) {
+    demoBtn.innerHTML = isDemo ? `<span>🎭 Sair da Demonstração</span>` : `<span>🎭 Demonstração</span>`;
+    demoBtn.className = isDemo
+      ? "ro-hide-btn px-3 py-2 rounded-xl bg-violet-500 text-white border border-violet-300 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-violet-500/25 transition"
+      : "ro-hide-btn px-3 py-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/30 text-violet-200 border border-violet-400/35 text-xs font-semibold flex items-center gap-1.5 transition";
+  }
+  if (demoPill) demoPill.classList.toggle("hidden", !isDemo);
+
+  if (!hasHosts) {
+    const ramEl = document.getElementById("stat-fb-ram");
+    const connEl = document.getElementById("stat-fb-conns");
+    if (ramEl) ramEl.textContent = "--";
+    if (connEl) connEl.textContent = "Aguardando servidor real";
+    currentTelemetryHostId = null;
+  }
+}
+
+async function toggleDemoMode() {
+  const isDemo = hostsState.some((h) => h.is_simulated);
+  const endpoint = isDemo ? "/api/demo/disable" : "/api/demo/enable";
+  const res = await fetch(endpoint, { method: "POST" });
+  if (res.ok) {
+    currentTelemetryHostId = null;
+    await refreshAllData();
+    await loadHostTelemetry();
+  } else {
+    alert("Não foi possível alternar o Modo Demonstração.");
+  }
+}
+
 async function refreshAllData() {
   await Promise.all([loadStats(), loadHosts(), loadExecutions(), loadDailyReports(), loadSchedules()]);
 }
@@ -275,12 +348,25 @@ async function loadHosts() {
 function renderHostsGrid() {
   const container = document.getElementById("hosts-grid");
   if (!hostsState.length) {
+    updateEmptyTelemetryState();
     container.innerHTML = `
-      <div class="col-span-2 p-6 text-center rounded-xl border border-dashed border-slate-800 text-slate-400 text-xs">
-        Nenhum servidor cadastrado.
+      <div class="col-span-2 p-8 text-center rounded-xl border border-dashed border-slate-700 bg-slate-950/60 space-y-3">
+        <p class="text-sm font-bold text-white">Nenhum servidor cadastrado</p>
+        <p class="text-xs text-slate-400 max-w-md mx-auto">
+          Cadastre um servidor Firebird real para iniciar a telemetria e os backups, ou ative o Modo Demonstração com dados fictícios.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+          <button onclick="openHostModal()" class="px-4 py-2 rounded-xl bg-[#00a896] hover:bg-teal-500 text-slate-950 font-bold text-xs transition">
+            + Cadastrar Servidor Real
+          </button>
+          <button onclick="toggleDemoMode()" class="px-4 py-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/35 text-violet-200 border border-violet-400/40 font-semibold text-xs transition">
+            🎭 Ativar Modo Demonstração
+          </button>
+        </div>
       </div>`;
     return;
   }
+  updateEmptyTelemetryState();
 
   container.innerHTML = hostsState
     .map((h) => {
@@ -567,14 +653,51 @@ function toggleSingleChartExpand(cardId) {
 
 async function loadDailyReports() {
   try {
-    const hostId = currentTelemetryHostId || 1;
+    if (!hostsState.length) {
+      document.getElementById("rep-added-24h").textContent = "--";
+      document.getElementById("rep-removed-24h").textContent = "--";
+      document.getElementById("rep-net-24h").textContent = "--";
+      document.getElementById("rep-size-delta-24h").textContent = "Cadastre um servidor para gerar relatórios";
+      document.getElementById("rep-top-table").textContent = "--";
+      document.getElementById("rep-top-table-sub").textContent = "--";
+      document.getElementById("rep-period-badge").textContent = "--";
+      const bkpSumEl = document.getElementById("rep-backup-summary");
+      const bkpCntEl = document.getElementById("rep-backup-counts");
+      if (bkpSumEl) bkpSumEl.textContent = "Nenhum servidor cadastrado. Cadastre um servidor ou ative o Modo Demonstração.";
+      if (bkpCntEl) bkpCntEl.innerHTML = "";
+      const tbody = document.getElementById("rep-tables-tbody");
+      if (tbody) tbody.innerHTML = "";
+      const histEl = document.getElementById("rep-history-list");
+      if (histEl) histEl.innerHTML = `<div class="p-4 text-center text-slate-500">Nenhum relatório gerado ainda.</div>`;
+      return;
+    }
+
+    const hostId = currentTelemetryHostId || hostsState[0].id;
     const res = await fetch(`/api/reports?host_id=${hostId}`);
     if (!res.ok) return;
     const reports = await res.json();
-    if (!reports.length) return;
+    if (!reports.length) {
+      const histEl = document.getElementById("rep-history-list");
+      if (histEl) histEl.innerHTML = `<div class="p-4 text-center text-slate-500">Nenhum relatório gerado ainda. Clique em "Gerar Relatório Agora" ou aguarde às 00:00.</div>`;
+      return;
+    }
 
     const latest = reports[0];
     const sum = latest.summary || {};
+    const bkp = sum.backup_summary_24h || {};
+
+    const bkpSumEl = document.getElementById("rep-backup-summary");
+    const bkpCntEl = document.getElementById("rep-backup-counts");
+    if (bkpSumEl) {
+      bkpSumEl.textContent = bkp.last_backup_summary || "Nenhuma execução de backup registrada nas últimas 24h.";
+    }
+    if (bkpCntEl) {
+      bkpCntEl.innerHTML = `
+        <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-200">Total: ${bkp.total_jobs || 0}</span>
+        <span class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">OK: ${bkp.success_jobs || 0}</span>
+        <span class="px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300">Falhas: ${bkp.error_jobs || 0}</span>
+      `;
+    }
 
     document.getElementById("rep-added-24h").textContent = `+${Number(latest.records_added_24h || 0).toLocaleString("pt-BR")}`;
     document.getElementById("rep-removed-24h").textContent = `-${Number(latest.records_removed_24h || 0).toLocaleString("pt-BR")}`;
