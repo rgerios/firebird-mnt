@@ -46,6 +46,7 @@ from app.models.schemas import (
     OfflineOptimizeRequest,
     RestoreValidateJobRequest,
     ScheduleCreate,
+    SqlUtilsRequest,
     TransferJobRequest,
     UserCreateRequest,
 )
@@ -76,6 +77,7 @@ from app.services.scheduler import (
 )
 from app.services.ssh_service import (
     check_host_health,
+    execute_readonly_sql,
     inspect_host_storage_and_gstat,
     mask_sensitive,
 )
@@ -1153,6 +1155,25 @@ def download_execution_log(exec_id: int):
         filename=f"inframgnt_job_{exec_id}.log",
         media_type="text/plain; charset=utf-8",
     )
+
+
+@router.post("/api/hosts/{host_id}/sql-utils")
+async def run_sql_utils(
+    host_id: int,
+    payload: SqlUtilsRequest,
+    current_user: Dict[str, Any] = Depends(require_auth),
+) -> Dict[str, Any]:
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem executar consultas SQL Utils.")
+    host = get_host_by_id(host_id)
+    if not host:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    try:
+        return await execute_readonly_sql(host, payload.sql)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro ao executar consulta: {exc}")
 
 
 @router.post("/api/demo/enable", dependencies=[Depends(require_auth)])

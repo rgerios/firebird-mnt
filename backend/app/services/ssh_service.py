@@ -848,3 +848,126 @@ async def upload_local_file_to_host(
 
     code = await asyncio.to_thread(_sftp_upload)
     return code, remote_target_path
+
+
+_FORBIDDEN_SQL_KEYWORDS = re.compile(
+    r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|RECREATE|MERGE|EXECUTE|GRANT|REVOKE|COMMIT|ROLLBACK|SET|CONNECT|INPUT|OUTPUT|SHELL)\b",
+    re.IGNORECASE,
+)
+
+
+def validate_readonly_sql(sql: str) -> str:
+    """
+    Validates that a user-supplied SQL query is strictly a single read-only SELECT/WITH statement.
+    """
+    cleaned = re.sub(r"/\*.*?\*/", " ", sql, flags=re.DOTALL)
+    cleaned = re.sub(r"--[^\r\n]*", " ", cleaned)
+    cleaned = cleaned.strip().rstrip(";").strip()
+    if not cleaned:
+        raise ValueError("Informe uma consulta SQL.")
+    if ";" in cleaned:
+        raise ValueError("Apenas uma única instrução SELECT por vez é permitida.")
+    if not re.match(r"^(SELECT|WITH)\b", cleaned, re.IGNORECASE):
+        raise ValueError("Somente consultas iniciadas por SELECT ou WITH são permitidas (modo READ ONLY).")
+    m = _FORBIDDEN_SQL_KEYWORDS.search(cleaned)
+    if m:
+        raise ValueError(f"Palavra-chave bloqueada no modo somente leitura: {m.group(1).upper()}")
+    return cleaned
+
+
+async def execute_readonly_sql(host: Dict[str, Any], sql: str) -> Dict[str, Any]:
+    """
+    Executes a validated read-only SQL query against the Firebird database via isql
+    inside an explicit `SET TRANSACTION READ ONLY` transaction.
+    """
+    cleaned_sql = validate_readonly_sql(sql)
+    t0 = time.perf_counter()
+
+    if host.get("is_simulated"):
+        await asyncio.sleep(0.15)
+        cols = ["MON$TRANSACTION_ID", "MON$REMOTE_ADDRESS", "MON$REMOTE_PROCESS", "MON$TIMESTAMP"]
+        rows = [
+            {
+                "MON$TRANSACTION_ID": "668838",
+                "MON$REMOTE_ADDRESS": "192.168.0.45/51240",
+                "MON$REMOTE_PROCESS": "C:\\Millenium\\Millenium.exe",
+                "MON$TIMESTAMP": "2026-11-27 14:22:10.1200",
+            },
+            {
+                "MON$TRANSACTION_ID": "855601",
+                "MON$REMOTE_ADDRESS": "192.168.0.88/49812",
+                "MON$REMOTE_PROCESS": "C:\\Millenium\\PDV.exe",
+                "MON$TIMESTAMP": "2026-11-27 14:36:18.4100",
+            },
+        ]
+        return {
+            "columns": cols,
+            "rows": rows,
+            "row_count": len(rows),
+            "duration_ms": round((time.perf_counter() - t0) * 1000, 1),
+            "raw_output": "[SIMULAÇÃO READ ONLY]\n" + "\n".join(str(r) for r in rows),
+        }
+
+    fb_user = host.get("fb_user") or "SYSDBA"
+    fb_pass = host.get("fb_password") or "masterkey"
+    db_path = host.get("default_db_path") or "/dados/producao.fdb"
+
+    def _run_isql() -> Dict[str, Any]:
+        client = _build_paramiko_client(host, timeout=10.0)
+        try:
+            script = (
+                "SET TRANSACTION READ ONLY;\n"
+                "SET LIST ON;\n"
+                f"{cleaned_sql};\n"
+                "EXIT;\n"
+            )
+            cmd = (
+                "PATH=\"/opt/firebird/bin:/usr/local/bin:$PATH\"; "
+                f"isql -u {fb_user} -p '{fb_pass}' '{db_path}' << 'EOF_SQL_UTILS'\n"
+                f"{script}"
+                "EOF_SQL_UTILS\n"
+            )
+            _, stdout, stderr = client.exec_command(cmd, timeout=18.0)
+            out_txt = stdout.read().decode("utf-8", errors="replace")
+            err_txt = stderr.read().decode("utf-8", errors="replace").strip()
+            exit_code = stdout.channel.recv_exit_status()
+            if exit_code != 0 and not out_txt.strip():
+                raise RuntimeError(err_txt or f"isql retornou código {exit_code}")
+
+            # Parse `SET LIST ON` blocks (separated by blank lines; each line is `COL_NAME   value`)
+            rows: List[Dict[str, str]] = []
+            columns: List[str] = []
+            current: Dict[str, str] = {}
+            for raw_line in out_txt.splitlines():
+                line = raw_line.rstrip()
+                if not line.strip():
+                    if current:
+                        rows.append(current)
+                        current = {}
+                        if len(rows) >= 200:
+                            break
+                    continue
+                m = re.match(r"^([A-Z0-9_\$]+)\s+(.*)$", line, re.IGNORECASE)
+                if m:
+                    col = m.group(1)
+                    val = m.group(2).strip()
+                    if col not in columns:
+                        columns.append(col)
+                    current[col] = val
+            if current and len(rows) < 200:
+                rows.append(current)
+
+            if err_txt and not rows:
+                raise RuntimeError(err_txt)
+
+            return {
+                "columns": columns,
+                "rows": rows,
+                "row_count": len(rows),
+                "duration_ms": round((time.perf_counter() - t0) * 1000, 1),
+                "raw_output": out_txt.strip() or err_txt,
+            }
+        finally:
+            client.close()
+
+    return await asyncio.to_thread(_run_isql)

@@ -224,28 +224,33 @@ async function deleteUserAccount(userId) {
 function selectMainTab(tab) {
   const dashBlocks = document.querySelectorAll(".main-dashboard-block");
   const repPanel = document.getElementById("tab-panel-reports");
+  const sqlPanel = document.getElementById("tab-panel-sqlutils");
   const btnDash = document.getElementById("main-tab-btn-dashboard");
   const btnRep = document.getElementById("main-tab-btn-reports");
+  const btnSql = document.getElementById("main-tab-btn-sqlutils");
+
+  const inactiveCls = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs transition flex items-center gap-1.5";
+  const activeCls = "px-4 py-2 rounded-xl bg-[#00a896] text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition flex items-center gap-1.5";
+
+  if (btnDash) btnDash.className = tab === "dashboard" ? activeCls : inactiveCls;
+  if (btnRep) btnRep.className = tab === "reports" ? activeCls : inactiveCls;
+  if (btnSql) btnSql.className = tab === "sqlutils" ? activeCls : inactiveCls;
 
   if (tab === "reports") {
     dashBlocks.forEach((el) => el.classList.add("hidden"));
     if (repPanel) repPanel.classList.remove("hidden");
-    if (btnDash) {
-      btnDash.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs transition";
-    }
-    if (btnRep) {
-      btnRep.className = "px-4 py-2 rounded-xl bg-[#00a896] text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition flex items-center gap-1.5";
-    }
+    if (sqlPanel) sqlPanel.classList.add("hidden");
     loadDailyReports();
+  } else if (tab === "sqlutils") {
+    dashBlocks.forEach((el) => el.classList.add("hidden"));
+    if (repPanel) repPanel.classList.add("hidden");
+    if (sqlPanel) sqlPanel.classList.remove("hidden");
+    const qEl = document.getElementById("sqlu-query");
+    if (qEl && !qEl.value.trim()) applySqlUtilsPreset();
   } else {
     dashBlocks.forEach((el) => el.classList.remove("hidden"));
     if (repPanel) repPanel.classList.add("hidden");
-    if (btnDash) {
-      btnDash.className = "px-4 py-2 rounded-xl bg-[#00a896] text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition";
-    }
-    if (btnRep) {
-      btnRep.className = "px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-xs transition flex items-center gap-1.5";
-    }
+    if (sqlPanel) sqlPanel.classList.add("hidden");
     updateEmptyTelemetryState();
   }
 }
@@ -493,6 +498,7 @@ function populateHostDropdowns() {
   setHtml("telemetry-host-select", buildOpts(currentTelemetryHostId));
   setHtml("sched-prod-host", buildOpts(defaultProdId));
   setHtml("sched-test-host", buildOpts(defaultTestId));
+  setHtml("sqlu-host", buildOpts(defaultProdId));
 
   const offlineHostEl = document.getElementById("offline-host-select");
   if (offlineHostEl) {
@@ -1681,6 +1687,125 @@ async function deleteSchedule(id) {
   if (!confirm("Remover este agendamento?")) return;
   await fetch(`/api/schedules/${id}`, { method: "DELETE" });
   await loadSchedules();
+}
+
+// ---------------------------------------------------------------------------
+// 3.6 SQL Utils (Read-Only Troubleshooting & SQL Livre)
+// ---------------------------------------------------------------------------
+
+const SQL_UTILS_PRESETS = {
+  stuck_tx: {
+    desc: "Lista as transações mais antigas em aberto para identificar qual IP ou processo está segurando o OAT e aumentando o Gap.",
+    sql: `SELECT FIRST 25\n  t.MON$TRANSACTION_ID,\n  a.MON$ATTACHMENT_ID,\n  a.MON$USER,\n  a.MON$REMOTE_ADDRESS,\n  a.MON$REMOTE_PROCESS,\n  t.MON$TIMESTAMP,\n  t.MON$STATE\nFROM MON$TRANSACTIONS t\nJOIN MON$ATTACHMENTS a ON a.MON$ATTACHMENT_ID = t.MON$ATTACHMENT_ID\nORDER BY t.MON$TRANSACTION_ID ASC`,
+  },
+  active_sql: {
+    desc: "Exibe as instruções SQL em execução ativa neste momento (útil para achar relatórios ou queries pesadas).",
+    sql: `SELECT FIRST 25\n  s.MON$STATEMENT_ID,\n  a.MON$USER,\n  a.MON$REMOTE_ADDRESS,\n  a.MON$REMOTE_PROCESS,\n  s.MON$TIMESTAMP,\n  LEFT(COALESCE(s.MON$SQL_TEXT, ''), 180) AS SQL_TEXT\nFROM MON$STATEMENTS s\nJOIN MON$ATTACHMENTS a ON a.MON$ATTACHMENT_ID = s.MON$ATTACHMENT_ID\nWHERE s.MON$STATE = 1\nORDER BY s.MON$TIMESTAMP ASC`,
+  },
+  connections: {
+    desc: "Lista todas as conexões ativas no Firebird (porta 3050), com usuário, IP e aplicativo cliente.",
+    sql: `SELECT FIRST 100\n  a.MON$ATTACHMENT_ID,\n  a.MON$USER,\n  a.MON$REMOTE_ADDRESS,\n  a.MON$REMOTE_PROCESS,\n  a.MON$TIMESTAMP\nFROM MON$ATTACHMENTS a\nWHERE a.MON$SYSTEM_FLAG = 0\nORDER BY a.MON$TIMESTAMP ASC`,
+  },
+  table_io: {
+    desc: "Mostra as tabelas com mais leituras sequenciais (table scans) e alterações na sessão/instância atual.",
+    sql: `SELECT FIRST 25\n  TRIM(r.RDB$RELATION_NAME) AS TABELA,\n  COALESCE(s.MON$RECORD_SEQ_READS, 0) AS SEQ_READS,\n  COALESCE(s.MON$RECORD_IDX_READS, 0) AS IDX_READS,\n  COALESCE(s.MON$RECORD_INSERTS, 0) AS INSERTS,\n  COALESCE(s.MON$RECORD_UPDATES, 0) AS UPDATES,\n  COALESCE(s.MON$RECORD_DELETES, 0) AS DELETES\nFROM RDB$RELATIONS r\nLEFT JOIN MON$TABLE_STATS s ON s.MON$TABLE_STAT_ID = r.RDB$RELATION_ID\nWHERE r.RDB$SYSTEM_FLAG = 0 AND r.RDB$VIEW_BLR IS NULL\nORDER BY COALESCE(s.MON$RECORD_SEQ_READS, 0) DESC`,
+  },
+  memory_top: {
+    desc: "Lista as conexões/anexos que mais consomem memória RAM dentro do motor Firebird.",
+    sql: `SELECT FIRST 20\n  a.MON$ATTACHMENT_ID,\n  a.MON$USER,\n  a.MON$REMOTE_ADDRESS,\n  a.MON$REMOTE_PROCESS,\n  CAST(m.MON$MEMORY_USED / 1048576.0 AS NUMERIC(12,2)) AS MB_USADO\nFROM MON$MEMORY_USAGE m\nJOIN MON$ATTACHMENTS a ON a.MON$ATTACHMENT_ID = m.MON$STAT_ID\nWHERE m.MON$STAT_GROUP = 1\nORDER BY m.MON$MEMORY_USED DESC`,
+  },
+  db_header: {
+    desc: "Retorna OIT, OAT, Next TX, Page Size, Buffers, Sweep Interval e Forced Writes direto da tabela MON$DATABASE.",
+    sql: `SELECT\n  d.MON$PAGE_SIZE,\n  d.MON$PAGE_BUFFERS,\n  d.MON$OLDEST_TRANSACTION AS OIT,\n  d.MON$OLDEST_ACTIVE AS OAT,\n  d.MON$NEXT_TRANSACTION AS NEXT_TX,\n  (d.MON$NEXT_TRANSACTION - d.MON$OLDEST_ACTIVE) AS GAP_NEXT_OAT,\n  d.MON$SWEEP_INTERVAL,\n  d.MON$FORCED_WRITES\nFROM MON$DATABASE d`,
+  },
+};
+
+function applySqlUtilsPreset() {
+  const key = document.getElementById("sqlu-preset")?.value || "stuck_tx";
+  const preset = SQL_UTILS_PRESETS[key];
+  if (!preset) return;
+  const qEl = document.getElementById("sqlu-query");
+  const dEl = document.getElementById("sqlu-preset-desc");
+  if (qEl) qEl.value = preset.sql;
+  if (dEl) dEl.textContent = preset.desc;
+}
+
+function toggleSqluRaw() {
+  const tbl = document.getElementById("sqlu-table-wrap");
+  const raw = document.getElementById("sqlu-raw-output");
+  if (!tbl || !raw) return;
+  const showRaw = raw.classList.contains("hidden");
+  raw.classList.toggle("hidden", !showRaw);
+  tbl.classList.toggle("hidden", showRaw);
+}
+
+async function runSqlUtilsQuery() {
+  const hostId = document.getElementById("sqlu-host")?.value;
+  const sql = document.getElementById("sqlu-query")?.value?.trim();
+  const btn = document.getElementById("btn-run-sqlu");
+  const statusBar = document.getElementById("sqlu-status-bar");
+  const statusText = document.getElementById("sqlu-status-text");
+  const tableWrap = document.getElementById("sqlu-table-wrap");
+  const thead = document.getElementById("sqlu-thead");
+  const tbody = document.getElementById("sqlu-tbody");
+  const rawEl = document.getElementById("sqlu-raw-output");
+
+  if (!hostId) {
+    alert("Cadastre um servidor (ou ative o Modo Demonstração) primeiro.");
+    return;
+  }
+  if (!sql) return;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Executando...";
+  }
+  try {
+    const res = await fetch(`/api/hosts/${hostId}/sql-utils`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sql }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (statusBar) statusBar.classList.remove("hidden");
+      if (statusText) statusText.innerHTML = `<span class="text-rose-300 font-semibold">${escapeHtml(data.detail || "Erro na consulta")}</span>`;
+      if (tableWrap) tableWrap.classList.add("hidden");
+      if (rawEl) rawEl.classList.add("hidden");
+      return;
+    }
+
+    if (statusBar) statusBar.classList.remove("hidden");
+    if (statusText) {
+      statusText.innerHTML = `<span class="text-emerald-300 font-semibold">${data.row_count} linha(s)</span> retornadas em <span class="font-mono-code text-teal-200">${data.duration_ms} ms</span> (READ ONLY)`;
+    }
+    if (rawEl) {
+      rawEl.textContent = data.raw_output || "(sem saída)";
+      rawEl.classList.add("hidden");
+    }
+
+    const cols = data.columns || [];
+    const rows = data.rows || [];
+    if (cols.length && rows.length) {
+      thead.innerHTML = `<tr>${cols.map((c) => `<th class="py-2.5 px-3 whitespace-nowrap">${escapeHtml(c)}</th>`).join("")}</tr>`;
+      tbody.innerHTML = rows
+        .map(
+          (r) => `<tr class="hover:bg-slate-900/60">${cols.map((c) => `<td class="py-2 px-3 text-slate-200 whitespace-nowrap">${escapeHtml(r[c] ?? "")}</td>`).join("")}</tr>`
+        )
+        .join("");
+      tableWrap.classList.remove("hidden");
+    } else {
+      tableWrap.classList.add("hidden");
+      if (rawEl) rawEl.classList.remove("hidden");
+    }
+  } catch (err) {
+    alert(`Erro de rede ao executar consulta: ${err}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "▶ Executar Consulta (READ ONLY)";
+    }
+  }
 }
 
 async function quickTriggerFullPipeline() {
