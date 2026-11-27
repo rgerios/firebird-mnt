@@ -143,20 +143,18 @@ async function loadSecurityUsers() {
         <td class="py-2 px-3 font-mono-code font-semibold text-white">${escapeHtml(u.username)}</td>
         <td class="py-2 px-3 text-slate-300">${escapeHtml(u.full_name)}</td>
         <td class="py-2 px-3">
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-            u.role === "admin"
-              ? "bg-teal-300/15 text-teal-200 border border-teal-300/30"
-              : u.role === "readonly"
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.role === "admin"
+            ? "bg-teal-300/15 text-teal-200 border border-teal-300/30"
+            : u.role === "readonly"
               ? "bg-violet-300/15 text-violet-200 border border-violet-300/30"
               : "bg-sky-300/15 text-sky-200 border border-sky-300/30"
           }">${escapeHtml(u.role === "readonly" ? "TV / Somente Leitura" : u.role)}</span>
         </td>
         <td class="py-2 px-3 text-slate-400">${formatIsoDate(u.last_login_at)}</td>
         <td class="py-2 px-3 text-right">
-          ${
-            currentUser && currentUser.id !== u.id
-              ? `<button onclick="deleteUserAccount(${u.id})" class="px-2 py-0.5 rounded bg-rose-950 hover:bg-rose-800 text-rose-300 text-[11px] transition">Remover</button>`
-              : `<span class="text-[11px] text-slate-500">Sessão atual</span>`
+          ${currentUser && currentUser.id !== u.id
+            ? `<button onclick="deleteUserAccount(${u.id})" class="px-2 py-0.5 rounded bg-rose-950 hover:bg-rose-800 text-rose-300 text-[11px] transition">Remover</button>`
+            : `<span class="text-[11px] text-slate-500">Sessão atual</span>`
           }
         </td>
       </tr>`
@@ -1205,6 +1203,36 @@ function useBackupFile(path) {
 }
 
 // Host Modal CRUD
+function handleAuthTypeChange() {
+  const authType = document.getElementById("host-auth-type").value;
+  const label = document.getElementById("host-secret-label");
+  const input = document.getElementById("host-secret");
+  const toggleBtn = document.getElementById("btn-toggle-ssh-secret");
+
+  if (authType === "password") {
+    label.textContent = "Senha SSH";
+    input.type = "password";
+    input.placeholder = "Digite a senha do usuário SSH";
+    if (input.value === "~/.ssh/id_rsa") {
+      input.value = "";
+    }
+    toggleBtn.classList.remove("hidden");
+  } else {
+    label.textContent = "Caminho Chave Privada";
+    input.type = "text";
+    input.placeholder = "~/.ssh/id_rsa";
+    if (!input.value) {
+      input.value = "~/.ssh/id_rsa";
+    }
+    toggleBtn.classList.add("hidden");
+  }
+}
+
+function toggleSshSecretVisibility() {
+  const input = document.getElementById("host-secret");
+  input.type = input.type === "password" ? "text" : "password";
+}
+
 function openHostModal(hostId = null) {
   const modal = document.getElementById("host-modal");
   const title = document.getElementById("host-modal-title");
@@ -1221,7 +1249,8 @@ function openHostModal(hostId = null) {
     document.getElementById("host-port").value = h.port;
     document.getElementById("host-username").value = h.username;
     document.getElementById("host-auth-type").value = h.auth_type;
-    document.getElementById("host-secret").value = h.secret || "";
+    handleAuthTypeChange();
+    document.getElementById("host-secret").value = h.secret || (h.auth_type === "password" ? "********" : "~/.ssh/id_rsa");
     document.getElementById("host-fb-user").value = h.fb_user;
     document.getElementById("host-fb-password").value = "********";
     document.getElementById("host-db-path").value = h.default_db_path;
@@ -1230,7 +1259,10 @@ function openHostModal(hostId = null) {
   } else {
     title.textContent = "Cadastrar Novo Servidor Firebird";
     document.getElementById("host-id").value = "";
-    document.getElementById("host-simulated").checked = true;
+    document.getElementById("host-auth-type").value = "key";
+    handleAuthTypeChange();
+    document.getElementById("host-secret").value = "~/.ssh/id_rsa";
+    document.getElementById("host-simulated").checked = false;
   }
 
   modal.classList.remove("hidden");
@@ -1321,8 +1353,8 @@ function updateBackupPreview() {
     comp === "zstd"
       ? `stdout | zstd -1 -T0 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
       : comp === "gzip"
-      ? `stdout | gzip -1 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
-      : `${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`;
+        ? `stdout | gzip -1 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
+        : `${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`;
 
   const previewEl = document.getElementById("bkp-cmd-preview");
   if (previewEl) {
@@ -1534,8 +1566,8 @@ function renderOfflineReport(rep) {
     rep.health_score >= 85
       ? "text-teal-200 border-teal-300/40 bg-teal-300/15"
       : rep.health_score >= 55
-      ? "text-amber-200 border-amber-400/40 bg-amber-400/15"
-      : "text-rose-200 border-rose-500/50 bg-rose-500/20";
+        ? "text-amber-200 border-amber-400/40 bg-amber-400/15"
+        : "text-rose-200 border-rose-500/50 bg-rose-500/20";
 
   const recCards = (rep.recommendations || [])
     .map((r) => {
@@ -1543,15 +1575,15 @@ function renderOfflineReport(rep) {
         r.severity === "critical"
           ? "hot-card-critical"
           : r.severity === "warning"
-          ? "warm-card-io"
-          : "pastel-card-safe";
+            ? "warm-card-io"
+            : "pastel-card-safe";
 
       const badge =
         r.severity === "critical"
           ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-500 text-white">Crítico • Reparo</span>`
           : r.severity === "warning"
-          ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/25 text-amber-200 border border-amber-400/40">Recomendado</span>`
-          : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-teal-300/20 text-teal-200 border border-teal-300/30">OK • Saudável</span>`;
+            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/25 text-amber-200 border border-amber-400/40">Recomendado</span>`
+            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-teal-300/20 text-teal-200 border border-teal-300/30">OK • Saudável</span>`;
 
       const actionBtn = r.action_id
         ? `<button onclick="runOfflineOptimizationAction('${r.action_id}')" class="mt-3 w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-teal-300 text-white hover:text-slate-950 border border-white/20 text-xs font-bold transition">
@@ -1580,8 +1612,8 @@ function renderOfflineReport(rep) {
         t.status === "critical"
           ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/25 text-rose-200">Precisa Sweep</span>`
           : t.status === "warning"
-          ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-200">Lixo Moderado</span>`
-          : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-300/20 text-teal-200">Limpa</span>`;
+            ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-200">Lixo Moderado</span>`
+            : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-300/20 text-teal-200">Limpa</span>`;
       return `
         <tr class="border-b border-slate-800/70">
           <td class="py-2 px-3 font-mono-code font-semibold text-white">${escapeHtml(t.table_name)}</td>
@@ -1600,8 +1632,8 @@ function renderOfflineReport(rep) {
         i.depth >= 4
           ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/25 text-rose-200">Depth ${i.depth} (Rebuild 16K)</span>`
           : i.depth === 3
-          ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-200">Depth 3 (Recalcular)</span>`
-          : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-300/20 text-teal-200">Depth ${i.depth} (Ótimo)</span>`;
+            ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-200">Depth 3 (Recalcular)</span>`
+            : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-300/20 text-teal-200">Depth ${i.depth} (Ótimo)</span>`;
       return `
         <tr class="border-b border-slate-800/70">
           <td class="py-2 px-3 font-mono-code font-semibold text-white">${escapeHtml(i.index_name)}</td>
@@ -1775,8 +1807,8 @@ function connectWebSocket() {
         msg.status === "success"
           ? "CONCLUÍDO COM SUCESSO"
           : msg.status === "warning"
-          ? "FINALIZADO COM ALERTA"
-          : "FALHA NA EXECUÇÃO";
+            ? "FINALIZADO COM ALERTA"
+            : "FALHA NA EXECUÇÃO";
       const stEl = document.getElementById("terminal-status-text");
       if (stEl) {
         stEl.textContent = `Job #${msg.execution_id} (${msg.job_title}): ${statusLabel} em ${msg.duration_seconds?.toFixed(2) || 0}s`;
