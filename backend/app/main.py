@@ -74,3 +74,11 @@ def serve_help(request: Request):
     if not get_current_user_or_none(request):
         return RedirectResponse(url="/login", status_code=302)
     return FileResponse(str(FRONTEND_DIR / "help.html"))
+
+
+@app.get("/dash")
+@app.get("/dash.html")
+def serve_dash(request: Request):
+    if not get_current_user_or_none(request):
+        return RedirectResponse(url="/login", status_code=302)
+    return FileResponse(str(FRONTEND_DIR / "dash.html"))

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia de Métricas do Dashboard — Firebird Command Center (Venosan)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="min-h-screen antialiased selection:bg-[#00a896] selection:text-white">
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="bg-white/95 px-3 py-1.5 rounded-xl shadow-md border border-white/30 flex items-center">
+          <img src="/assets/venosan-logo.png" alt="Venosan • Lohmann & Rauscher" class="h-8 w-auto object-contain" />
+        </div>
+        <img src="/assets/firebird-logo.png" alt="Firebird" class="w-9 h-9 object-contain" />
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold text-white">Como Interpretar os Cards &amp; Métricas (dash.html)</h1>
+          <p class="text-xs text-slate-300/80">Explicação item a item dos gráficos de telemetria Firebird e Linux</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="/help.html"
+          class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700 text-xs font-semibold transition">
+          📖 Guia &amp; Arquitetura
+        </a>
+        <a href="/"
+          class="px-4 py-2 rounded-xl bg-[#00a896] hover:bg-teal-500 text-slate-950 text-xs font-bold shadow-lg shadow-teal-500/20 transition">
+          &larr; Voltar ao Painel Principal
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-6">
+
+    <!-- Linha Superior: 3 Gráficos Temporais -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Card 1 -->
+      <div class="pastel-panel rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-teal-400/15 text-teal-200 border border-teal-400/30 font-bold">Card 1 • Temporal</span>
+          <span class="text-xs font-mono-code text-slate-400">Memória &amp; CPU</span>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Evolução Temporal: Memória Banco &amp; CPU</h2>
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-teal-200">Firebird RAM (MB) — Linha Verde</p>
+            <p class="mt-1">É a memória RAM real (RSS) que o processo do Firebird está ocupando neste momento.</p>
+            <p class="mt-1 text-slate-400"><strong>Como interpretar:</strong> Oscilações suaves conforme usuários entram e saem são normais. Só merece atenção se subir sem parar e encostar no limite de RAM do servidor.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-amber-300">CPU Host (%) — Linha Laranja</p>
+            <p class="mt-1">Percentual total de processador consumido na máquina do banco.</p>
+            <p class="mt-1 text-slate-400"><strong>Faixas:</strong> <span class="text-emerald-300">0–60% saudável</span> • <span class="text-amber-300">60–85% atenção</span> • <span class="text-rose-300">&gt;85% gargalo</span> (típico quando roda compressão na produção).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="pastel-panel rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-sky-400/15 text-sky-200 border border-sky-400/30 font-bold">Card 2 • Temporal</span>
+          <span class="text-xs font-mono-code text-slate-400">Conexões &amp; I/O</span>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Evolução Temporal: Sessões 3050 &amp; I/O Disco</h2>
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-sky-200">Sessões Porta 3050 — Linha Azul</p>
+            <p class="mt-1">Quantidade de conexões TCP ativas na porta padrão do Firebird (`3050`) — representa estações do ERP, serviços e integrações conectadas.</p>
+            <p class="mt-1 text-slate-400"><strong>Como interpretar:</strong> Quedas bruscas fora de horário de almoço/saída podem indicar queda de rede ou reinício do serviço.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-teal-200">I/O Disco (MB/s) — Linha Pontilhada</p>
+            <p class="mt-1">Estimativa de movimentação de disco gerada pelas sessões ativas e carga de CPU do ambiente.</p>
+            <p class="mt-1 text-slate-400"><strong>Como interpretar:</strong> Picos pontuais em relatórios ou fechamentos são esperados.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="pastel-panel rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-violet-400/15 text-violet-200 border border-violet-400/30 font-bold">Card 3 • Temporal</span>
+          <span class="text-xs font-mono-code text-slate-400">Transações &amp; Rede</span>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Evolução Temporal: Gap OAT/OIT &amp; Latência</h2>
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-violet-200">Gap Transações (Next - OAT) — Linha Roxa</p>
+            <p class="mt-1">Diferença entre a próxima transação do banco e a transação ativa mais antiga.</p>
+            <p class="mt-1 text-slate-400"><strong>Por que importa:</strong> Quando alguma tela do ERP ou relatório fica aberta sem <em>commit</em>, o OAT trava e o Gap sobe. Enquanto estiver alto, o Firebird guarda versões antigas (*backversions*) na memória/disco.</p>
+            <p class="mt-1 text-slate-400"><strong>Faixas:</strong> <span class="text-emerald-300">&lt; 20.000 normal</span> • <span class="text-amber-300">20.000–100.000 atenção</span> • <span class="text-rose-300">&gt; 100.000 persistente: verificar sessão presa</span>.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-amber-300">Latência SSH (ms) — Linha Amarela</p>
+            <p class="mt-1">Tempo de resposta de rede entre o servidor da aplicação e o servidor do banco.</p>
+            <p class="mt-1 text-slate-400"><strong>Como interpretar:</strong> Em rede local (LAN), o normal é ficar abaixo de <strong>1–2 ms</strong>.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Linha Inferior: 3 Cards Estruturais -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Card 4 -->
+      <div class="pastel-panel rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-teal-400/15 text-teal-200 border border-teal-400/30 font-bold">Card 4 • Memória</span>
+          <span class="text-xs font-mono-code text-slate-400">RAM &amp; Cache</span>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Distribuição da Memória RAM</h2>
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-teal-200">Firebird Engine (RSS)</p>
+            <p class="mt-1">Memória usada diretamente pelo processo do banco.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-sky-500/30">
+            <p class="font-bold text-sky-200">Page Cache Linux (.fdb) — Muito importante!</p>
+            <p class="mt-1">No Linux, toda RAM livre é usada automaticamente pelo sistema operacional como cache de disco para acelerar leituras do arquivo <code class="font-mono-code">.fdb</code>.</p>
+            <p class="mt-1 text-emerald-300"><strong>Regra de ouro:</strong> Page Cache alto <strong>NÃO</strong> significa servidor superdimensionado nem falta de memória — significa que grande parte do seu banco está em RAM rápida! Se outro processo precisar, o Linux devolve na hora.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-slate-200">RAM Livre</p>
+            <p class="mt-1">Memória totalmente ociosa. Em servidores Linux saudáveis de banco de dados, é normal ficar baixa (centenas de MB) porque o resto está trabalhando no Page Cache.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="pastel-panel rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-200 border border-amber-400/30 font-bold">Card 5 • gstat -h</span>
+          <span class="text-xs font-mono-code text-slate-400">Header Page</span>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Densidade de Tabelas &amp; Backversions</h2>
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+            <p><strong class="text-teal-200">OIT (Oldest Interesting Transaction):</strong> transação mais antiga que ainda precisa de atenção/limpeza.</p>
+            <p><strong class="text-teal-200">OAT (Oldest Active Transaction):</strong> transação mais antiga atualmente aberta.</p>
+            <p><strong class="text-teal-200">Next TX:</strong> número da próxima transação a ser criada.</p>
+            <p class="text-slate-400 pt-1"><strong>Como ler rápido:</strong> Se <strong>OAT - OIT</strong> está pequeno (ex.: 1 a 5.000), o <em>Sweep</em> está em dia. Se <strong>Next TX - OAT</strong> está alto, há uma transação aberta segurando versões antigas.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-amber-200">Page Size (ex.: 16384 = 16 KB)</p>
+            <p class="mt-1">Tamanho de cada página física do <code class="font-mono-code">.fdb</code>. Em Firebird 3.0+, <strong>16384 bytes (16 KB)</strong> é o padrão ideal para reduzir profundidade de índices B-Tree.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="pastel-panel rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-rose-400/15 text-rose-200 border border-rose-400/30 font-bold">Card 6 • Capacidade</span>
+          <span class="text-xs font-mono-code text-slate-400">Saturação</span>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Saturação do Servidor</h2>
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-white">Badge Superior (ex.: 114G)</p>
+            <p class="mt-1">Tamanho físico atual do arquivo <code class="font-mono-code">.fdb</code> no disco.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1">
+            <p class="font-bold text-teal-200">Barras de 0% a 100%</p>
+            <p><strong>CPU Host %:</strong> uso de processador.</p>
+            <p><strong>RAM Banco %:</strong> quanto da RAM total o processo do Firebird está consumindo.</p>
+            <p><strong>Disco %:</strong> ocupação da partição onde ficam os backups/dados (acima de <strong>90%</strong> a trava de segurança aborta novos backups locais).</p>
+            <p><strong>Lotação 3050 %:</strong> proporção de conexões ativas frente à capacidade típica.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-950/75 border border-slate-800">
+            <p class="font-bold text-sky-200">Disco Livre &amp; Porta 3050</p>
+            <p class="mt-1">Mostra o espaço livre na partição de backup (se mostrar <code class="font-mono-code">N/A</code>, verifique se a pasta de backup configurada já existe no servidor) e o total de sessões ativas.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Serviços Críticos -->
+    <section class="pastel-panel rounded-2xl p-5 space-y-4">
+      <h2 class="text-base font-extrabold text-white">Status dos Serviços Críticos (Rodapé da Telemetria)</h2>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+        <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+          <p class="font-bold text-teal-200">Firebird Engine</p>
+          <p class="text-slate-400 mt-1">Confirma que o processo do Firebird está ativo, versão exata, ODS, Dialect e RSS.</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+          <p class="font-bold text-teal-200">Biblioteca UDF rfunc</p>
+          <p class="text-slate-400 mt-1">Verifica se <code class="font-mono-code">rfunc</code> / <code class="font-mono-code">rfunc.so</code> está presente na pasta UDF (usada por funções de texto/data no ERP).</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+          <p class="font-bold text-teal-200">Firebird Guardian</p>
+          <p class="text-slate-400 mt-1">Processo <code class="font-mono-code">fbguard</code> que reinicia o motor se cair (ou indica gerenciamento direto via systemd).</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+          <p class="font-bold text-teal-200">Socket GDS_DB (3050)</p>
+          <p class="text-slate-400 mt-1">Quantidade de conexões TCP estabelecidas na porta 3050 do banco.</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+          <p class="font-bold text-teal-200">SSD Trim (fstrim.timer)</p>
+          <p class="text-slate-400 mt-1">Indica se o TRIM periódico de SSD/NVMe está ativo no Linux para manter a escrita rápida.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</body>
+
+</html>
