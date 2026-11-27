@@ -1619,6 +1619,10 @@ async function loadSchedules() {
 }
 
 function openScheduleModal() {
+  if (!hostsState.length) {
+    alert("Cadastre pelo menos um servidor (ou ative o Modo Demonstração) antes de criar um agendamento.");
+    return;
+  }
   document.getElementById("schedule-form")?.reset();
   document.getElementById("schedule-modal")?.classList.remove("hidden");
 }
