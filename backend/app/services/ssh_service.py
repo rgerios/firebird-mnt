@@ -113,7 +113,7 @@ async def check_host_health(host: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     fb_status = "unknown"
 
-                ver_cmd = "gbak -Z 2>&1 | head -n 1 || /opt/firebird/bin/gbak -Z 2>&1 | head -n 1 || echo 'Firebird Linux'"
+                ver_cmd = "PATH=\"/opt/firebird/bin:/usr/local/bin:$PATH\"; gbak -Z 2>&1 | head -n 1 || echo 'Firebird Linux'"
                 _, v_out, _ = client.exec_command(ver_cmd, timeout=5.0)
                 fb_ver = v_out.read().decode("utf-8", errors="replace").strip()
                 if "gbak:" in fb_ver:
@@ -332,8 +332,8 @@ async def inspect_host_storage_and_gstat(
                 "free -m | awk '/^Mem:/ {print $2, $3, $4, $6}'; "
                 "ps -C firebird,fb_inet_server,fbserver -o rss= 2>/dev/null | awk '{sum+=$1} END {printf \"%.1f\\n\", sum/1024}'; "
                 "ss -tn state established '( sport = :3050 )' 2>/dev/null | tail -n +2 | wc -l; "
-                "if [ -f /opt/firebird/UDF/rfunc.so ] || [ -f /usr/lib/firebird/UDF/rfunc.so ] || [ -f /usr/lib64/firebird/UDF/rfunc.so ]; then "
-                "  ls -la /opt/firebird/UDF/rfunc.so /usr/lib*/firebird/UDF/rfunc.so 2>/dev/null | head -n 1; "
+                "if [ -f /opt/firebird/UDF/rfunc.so ] || [ -f /opt/firebird/UDF/rfunc ] || [ -f /usr/lib/firebird/UDF/rfunc.so ] || [ -f /usr/lib/firebird/UDF/rfunc ] || [ -f /usr/lib64/firebird/UDF/rfunc.so ] || [ -f /usr/lib64/firebird/UDF/rfunc ]; then "
+                "  ls -la /opt/firebird/UDF/rfunc* /usr/lib*/firebird/UDF/rfunc* 2>/dev/null | head -n 1; "
                 "else echo 'RFUNC_NOT_FOUND'; fi; "
                 "pgrep -f fbguard >/dev/null 2>&1 && echo 'FBGUARD_ACTIVE' || echo 'FBGUARD_INACTIVE'; "
                 "systemctl is-active fstrim.timer 2>/dev/null || echo 'inactive'; "
@@ -370,7 +370,8 @@ async def inspect_host_storage_and_gstat(
 
             # 4. gstat -h + exact Firebird binary version (gbak -Z)
             gstat_cmd = (
-                "gbak -Z 2>&1 | head -n 1 || /opt/firebird/bin/gbak -Z 2>&1 | head -n 1 || echo 'Firebird Linux'; "
+                "PATH=\"/opt/firebird/bin:/usr/local/bin:$PATH\"; "
+                "gbak -Z 2>&1 | head -n 1 || echo 'Firebird Linux'; "
                 f"gstat -h -user {fb_user} -password \"{fb_pass}\" '{db_path}' 2>&1"
             )
             _, gs_out, _ = client.exec_command(gstat_cmd, timeout=8.0)
@@ -680,7 +681,7 @@ async def offload_backup_stream_to_local(
     if verbose:
         flags.append("-v")
     flag_str = " ".join(flags)
-    gbak_cmd = f"gbak {flag_str} -user {fb_user} -password \"{fb_pass}\" '{db_path}' stdout"
+    gbak_cmd = f"PATH=\"/opt/firebird/bin:/usr/local/bin:$PATH\"; gbak {flag_str} -user {fb_user} -password \"{fb_pass}\" '{db_path}' stdout"
 
     out_path = Path(local_out_file)
     out_path.parent.mkdir(parents=True, exist_ok=True)

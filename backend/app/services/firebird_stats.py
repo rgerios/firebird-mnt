@@ -74,6 +74,7 @@ async def collect_firebird_table_stats(host: Dict[str, Any]) -> List[Dict[str, A
         try:
             # SQL script querying Firebird monitoring tables
             isql_cmd = (
+                "PATH=\"/opt/firebird/bin:/usr/local/bin:$PATH\"; "
                 f"isql -u {fb_user} -p '{fb_pass}' '{db_path}' << 'EOF'\n"
                 "SET HEADING OFF;\n"
                 "SET LIST ON;\n"
