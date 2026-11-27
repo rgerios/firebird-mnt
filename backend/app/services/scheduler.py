@@ -1,7 +1,7 @@
 import asyncio
 import json
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from app.core.database import dict_from_row, get_db, now_iso
@@ -229,16 +229,11 @@ async def scheduler_loop() -> None:
                                 lat_ms,
                             ),
                         )
-                        # Keep last 1440 samples (24h of 1-minute samples)
+                        # Keep 48 hours of history so 30m..24h time ranges always have full data
+                        cutoff_48h = (now - timedelta(hours=48)).isoformat(timespec="seconds")
                         cur.execute(
-                            """
-                            DELETE FROM telemetry_samples
-                             WHERE host_id = ?
-                               AND id NOT IN (
-                                   SELECT id FROM telemetry_samples WHERE host_id = ? ORDER BY id DESC LIMIT 1440
-                               )
-                            """,
-                            (h["id"], h["id"]),
+                            "DELETE FROM telemetry_samples WHERE host_id = ? AND sampled_at < ?",
+                            (h["id"], cutoff_48h),
                         )
 
                     # Snapshot table metrics every 10 ticks (~10 minutes)

@@ -447,14 +447,25 @@ async def inspect_host(host_id: int) -> Dict[str, Any]:
         artifacts = [r["artifact_file"] for r in cur.fetchall()]
 
     info = await inspect_host_storage_and_gstat(host, artifacts)
-    _record_telemetry_sample(host_id, info, float(host.get("last_latency_ms") or 1.8))
+    _record_telemetry_sample(
+        host_id,
+        info,
+        float(host.get("last_latency_ms") or 1.8),
+        is_simulated=bool(host.get("is_simulated")),
+    )
     return info
 
 
-def _record_telemetry_sample(host_id: int, info: Dict[str, Any], latency_ms: float) -> None:
+def _record_telemetry_sample(
+    host_id: int,
+    info: Dict[str, Any],
+    latency_ms: float,
+    is_simulated: bool = False,
+) -> None:
     """
-    Seeds initial historical curve if empty and appends a live temporal data point
-    for the TV NOC time-series charts.
+    Appends a live temporal data point (throttled to ~50s between persisted rows)
+    and retains up to 48 hours of history so 30m..24h windows stay intact.
+    Only seeds synthetic history when `is_simulated` is True.
     """
     import math
     import random
@@ -462,27 +473,27 @@ def _record_telemetry_sample(host_id: int, info: Dict[str, Any], latency_ms: flo
 
     now_dt = datetime.now(timezone.utc).astimezone()
     mem = info.get("memory", {})
-    base_rss = float(mem.get("firebird_rss_mb") or 6500.0)
-    base_cpu = float(info.get("cpu_load_pct") or 22.0)
-    base_conns = int(info.get("active_connections") or 88)
-    base_gap = int(info.get("transaction_gap") or 895)
-    base_sweep = int(info.get("sweep_gap") or 15)
+    base_rss = float(mem.get("firebird_rss_mb") or 0.0)
+    base_cpu = float(info.get("cpu_load_pct") or 0.0)
+    base_conns = int(info.get("active_connections") or 0)
+    base_gap = int(info.get("transaction_gap") or 0)
+    base_sweep = int(info.get("sweep_gap") or 0)
 
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) AS cnt FROM telemetry_samples WHERE host_id = ?", (host_id,))
         cnt = cur.fetchone()["cnt"]
 
-        if cnt < 18:
-            # Seed 20 historical points spaced by 5 minutes so temporal charts look rich immediately
+        if is_simulated and cnt < 18:
+            # Seed 20 historical points spaced by 5 minutes only for Demo/Simulated hosts
             for i in range(20, 0, -1):
                 pt_time = now_dt - timedelta(minutes=i * 5)
                 wave = math.sin(i * 0.45)
-                rss_v = round(max(512.0, base_rss + wave * 180.0 + random.uniform(-45, 45)), 1)
-                cpu_v = round(max(2.0, min(98.0, base_cpu + wave * 9.5 + random.uniform(-3.5, 3.5))), 1)
-                conn_v = max(1, int(base_conns + wave * 14 + random.randint(-4, 4)))
+                rss_v = round(max(512.0, (base_rss or 6500.0) + wave * 180.0 + random.uniform(-45, 45)), 1)
+                cpu_v = round(max(2.0, min(98.0, (base_cpu or 22.0) + wave * 9.5 + random.uniform(-3.5, 3.5))), 1)
+                conn_v = max(1, int((base_conns or 88) + wave * 14 + random.randint(-4, 4)))
                 io_v = round(max(1.2, 18.5 + wave * 11.0 + random.uniform(-2.5, 4.0)), 1)
-                gap_v = max(10, int(base_gap + wave * 240 + random.randint(-50, 60)))
+                gap_v = max(10, int((base_gap or 895) + wave * 240 + random.randint(-50, 60)))
                 swp_v = max(0, int(base_sweep + i * 12))
                 lat_v = round(max(0.4, latency_ms + random.uniform(-0.3, 0.5)), 2)
 
@@ -507,39 +518,49 @@ def _record_telemetry_sample(host_id: int, info: Dict[str, Any], latency_ms: flo
                     ),
                 )
 
-        # Append current live point
-        io_now = round(random.uniform(14.2, 34.8) if info.get("role") == "production" else random.uniform(1.5, 6.4), 1)
+        # Avoid inserting duplicate samples when the UI polls every 10 seconds
+        should_insert = True
         cur.execute(
-            """
-            INSERT INTO telemetry_samples (
-                host_id, sampled_at, time_label, firebird_rss_mb, cpu_load_pct,
-                active_connections, disk_io_mbps, transaction_gap, sweep_gap, latency_ms
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                host_id,
-                now_dt.isoformat(timespec="seconds"),
-                now_dt.strftime("%H:%M:%S"),
-                base_rss,
-                base_cpu,
-                base_conns,
-                io_now,
-                base_gap,
-                base_sweep,
-                round(latency_ms, 2),
-            ),
+            "SELECT sampled_at FROM telemetry_samples WHERE host_id = ? ORDER BY id DESC LIMIT 1",
+            (host_id,),
         )
+        last_row = cur.fetchone()
+        if last_row and last_row["sampled_at"]:
+            try:
+                last_dt = datetime.fromisoformat(last_row["sampled_at"])
+                if (now_dt - last_dt).total_seconds() < 50:
+                    should_insert = False
+            except Exception:
+                pass
 
-        # Keep only most recent 60 samples per host
+        if should_insert:
+            io_now = round(max(1.2, (base_conns * 0.28) + (base_cpu * 0.15)), 1)
+            cur.execute(
+                """
+                INSERT INTO telemetry_samples (
+                    host_id, sampled_at, time_label, firebird_rss_mb, cpu_load_pct,
+                    active_connections, disk_io_mbps, transaction_gap, sweep_gap, latency_ms
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    host_id,
+                    now_dt.isoformat(timespec="seconds"),
+                    now_dt.strftime("%H:%M:%S"),
+                    base_rss,
+                    base_cpu,
+                    base_conns,
+                    io_now,
+                    base_gap,
+                    base_sweep,
+                    round(latency_ms, 2),
+                ),
+            )
+
+        # Retain 48 hours of history so 30m, 1h, 3h, 6h, 12h and 24h windows work accurately
+        cutoff_48h = (now_dt - timedelta(hours=48)).isoformat(timespec="seconds")
         cur.execute(
-            """
-            DELETE FROM telemetry_samples
-             WHERE host_id = ?
-               AND id NOT IN (
-                   SELECT id FROM telemetry_samples WHERE host_id = ? ORDER BY id DESC LIMIT 60
-               )
-            """,
-            (host_id, host_id),
+            "DELETE FROM telemetry_samples WHERE host_id = ? AND sampled_at < ?",
+            (host_id, cutoff_48h),
         )
 
 
@@ -564,19 +585,19 @@ async def get_host_timeseries(
     info = await inspect_host(host_id)
 
     range_configs = {
-        "30m": (30, 15, "%H:%M:%S"),
-        "1h": (60, 20, "%H:%M"),
-        "3h": (180, 24, "%H:%M"),
-        "6h": (360, 24, "%H:%M"),
-        "12h": (720, 24, "%H:%M"),
-        "24h": (1440, 24, "%d/%m %H:%M"),
+        "30m": (30, 30, "%H:%M"),
+        "1h": (60, 30, "%H:%M"),
+        "3h": (180, 36, "%H:%M"),
+        "6h": (360, 36, "%H:%M"),
+        "12h": (720, 36, "%H:%M"),
+        "24h": (1440, 36, "%d/%m %H:%M"),
     }
-    total_minutes, num_points, fmt_str = range_configs.get(range_key, (60, 20, "%H:%M"))
+    total_minutes, num_points, fmt_str = range_configs.get(range_key, (60, 30, "%H:%M"))
 
     now_dt = datetime.now(timezone.utc).astimezone()
     cutoff_time = (now_dt - timedelta(minutes=total_minutes)).isoformat(timespec="seconds")
 
-    # Fetch genuine real samples recorded by the background collector daemon
+    # Fetch genuine real samples recorded within the requested time window
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -589,13 +610,15 @@ async def get_host_timeseries(
         )
         real_rows = [dict_from_row(r) for r in cur.fetchall()]
 
-    if real_rows and len(real_rows) >= 6:
-        # We have genuine time-series history collected by the daemon!
-        # Subsample to keep a clean, performant payload of ~24 points
-        stride = max(1, len(real_rows) // num_points)
-        sampled_rows = real_rows[::stride]
-        if real_rows[-1] not in sampled_rows:
-            sampled_rows.append(real_rows[-1])
+    if real_rows or not host.get("is_simulated"):
+        # Subsample evenly across the full requested window
+        if real_rows:
+            stride = max(1, len(real_rows) // num_points)
+            sampled_rows = real_rows[::stride]
+            if real_rows[-1] not in sampled_rows:
+                sampled_rows.append(real_rows[-1])
+        else:
+            sampled_rows = []
 
         points = []
         for r in sampled_rows:
@@ -615,6 +638,31 @@ async def get_host_timeseries(
                     "transaction_gap": r["transaction_gap"],
                     "sweep_gap": r["sweep_gap"],
                     "latency_ms": r["latency_ms"],
+                }
+            )
+
+        # Append fresh live point if newer than the last persisted sample
+        mem = info.get("memory", {})
+        live_rss = float(mem.get("firebird_rss_mb") or 0.0)
+        live_cpu = float(info.get("cpu_load_pct") or 0.0)
+        live_conns = int(info.get("active_connections") or 0)
+        live_io = round(max(1.2, (live_conns * 0.28) + (live_cpu * 0.15)), 1)
+        live_gap = int(info.get("transaction_gap") or 0)
+        live_sweep = int(info.get("sweep_gap") or 0)
+        live_lat = round(float(host.get("last_latency_ms") or 0.0), 2)
+
+        if not points:
+            points.append(
+                {
+                    "sampled_at": now_dt.isoformat(timespec="seconds"),
+                    "time_label": now_dt.strftime(fmt_str),
+                    "firebird_rss_mb": live_rss,
+                    "cpu_load_pct": live_cpu,
+                    "active_connections": live_conns,
+                    "disk_io_mbps": live_io,
+                    "transaction_gap": live_gap,
+                    "sweep_gap": live_sweep,
+                    "latency_ms": live_lat,
                 }
             )
         return {
