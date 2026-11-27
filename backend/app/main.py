@@ -54,6 +54,11 @@ if (FRONTEND_DIR / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR / "assets")), name="assets")
 
 
+@app.get("/favicon.ico")
+def serve_favicon():
+    return FileResponse(str(FRONTEND_DIR / "assets" / "favicon.ico"))
+
+
 @app.get("/login")
 def serve_login(request: Request):
     if get_current_user_or_none(request):
