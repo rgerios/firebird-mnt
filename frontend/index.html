@@ -61,6 +61,13 @@
           <span id="ws-text">Conectando...</span>
         </div>
 
+        <!-- Guia & Arquitetura (help.html) -->
+        <a href="/help.html" target="_blank"
+          class="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+          title="Guia de Funcionalidades, Pontos Positivos/Negativos e Dimensionamento">
+          <span>📖 Guia &amp; Ajuda</span>
+        </a>
+
         <!-- Toggle TV / NOC Wallboard Mode -->
         <button onclick="toggleTvNocMode()" id="btn-tv-mode"
           class="px-3 py-2 rounded-xl bg-sky-400/15 hover:bg-sky-400/25 text-sky-100 border border-sky-300/30 text-xs font-semibold flex items-center gap-1.5 transition"
@@ -650,14 +657,23 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Compressão em Pipe</label>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Compressão</label>
                 <select id="pipe-compression"
                   class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white">
                   <option value="zstd">zstd -1 (Ultra-rápido)</option>
                   <option value="gzip">gzip -1 (Padrão)</option>
                   <option value="none">Sem compressão (.fbk puro)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-teal-200 mb-1">Local da Compressão</label>
+                <select id="pipe-comp-location"
+                  class="w-full rounded-lg bg-slate-950 border border-teal-500/30 px-3 py-2 text-xs text-white">
+                  <option value="source">Na Origem (Produção)</option>
+                  <option value="middle_stream">Máq. Aplicação (Streaming)</option>
+                  <option value="middle_staged">Máq. Aplicação (2 Etapas)</option>
                 </select>
               </div>
               <div>
@@ -676,6 +692,11 @@
                   class="rounded bg-slate-900 border-slate-700 text-teal-400" />
                 <span>Proteção <code class="text-teal-300 font-mono-code">-g</code> (Inibir Garbage Collection na
                   produção)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="pipe-restore" checked
+                  class="rounded bg-slate-900 border-slate-700 text-teal-400" />
+                <span>Restaurar base no Servidor Destino (<code class="text-teal-300 font-mono-code">gbak -c -rep</code>) após envio</span>
               </label>
               <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
                 <input type="checkbox" id="pipe-gfix" checked
@@ -704,7 +725,7 @@
                 required
                 class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label class="block text-xs font-medium text-slate-300 mb-1">Diretório Destino</label>
                 <input type="text" id="bkp-dir" oninput="updateBackupPreview()" value="/backups" required
@@ -717,6 +738,15 @@
                   <option value="zstd">zstd -1 (.fbk.zst)</option>
                   <option value="gzip">gzip -1 (.fbk.gz)</option>
                   <option value="none">Nenhuma (.fbk)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-teal-200 mb-1">Local da Compressão</label>
+                <select id="bkp-comp-location" onchange="updateBackupPreview()"
+                  class="w-full rounded-lg bg-slate-950 border border-teal-500/30 px-3 py-2 text-xs text-white">
+                  <option value="source">Na Origem (Produção)</option>
+                  <option value="middle_stream">Máq. Aplicação (Streaming)</option>
+                  <option value="middle_staged">Máq. Aplicação (2 Etapas)</option>
                 </select>
               </div>
             </div>
@@ -1185,6 +1215,45 @@
       <div id="offline-report-container" class="hidden space-y-5 pt-4 border-t border-slate-800"></div>
     </section>
 
+    <!-- 5.5 Agendamentos Automáticos (Execução 24/7 mesmo deslogado) -->
+    <section class="pastel-panel rounded-2xl p-5 ro-hide-btn">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            Agendamentos Automáticos (24/7 em Background)
+          </h2>
+          <p class="text-xs text-slate-300/80 mt-0.5">
+            Rotinas executadas automaticamente pelo servidor mesmo sem usuário logado, com suporte a Offload de Compressão na máquina da aplicação.
+          </p>
+        </div>
+        <button onclick="openScheduleModal()"
+          class="px-3.5 py-2 rounded-xl bg-[#00a896] hover:bg-teal-500 text-slate-950 font-bold text-xs shadow-lg shadow-teal-500/20 transition">
+          + Novo Agendamento
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-950/90 border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <th class="py-3 px-4">Rotina</th>
+              <th class="py-3 px-4">Cron (Horário)</th>
+              <th class="py-3 px-4">Origem &rarr; Destino</th>
+              <th class="py-3 px-4">Compressão &amp; Local</th>
+              <th class="py-3 px-4">Opções</th>
+              <th class="py-3 px-4">Última Execução</th>
+              <th class="py-3 px-4">Status</th>
+              <th class="py-3 px-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="schedules-tbody" class="divide-y divide-slate-800/70 text-xs">
+            <!-- Populated via app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- 6. Histórico e Relatórios de Execução -->
     <section class="pastel-panel rounded-2xl p-5">
       <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -1226,6 +1295,98 @@
     </section>
 
   </main>
+
+  <!-- Modal: Create Schedule -->
+  <div id="schedule-modal"
+    class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white">Novo Agendamento Automático (24/7)</h3>
+        <button onclick="closeScheduleModal()" class="text-slate-400 hover:text-white text-lg">&times;</button>
+      </div>
+      <form id="schedule-form" onsubmit="saveSchedule(event)" class="space-y-3.5 mt-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Nome da Rotina</label>
+            <input type="text" id="sched-name" placeholder="Ex: Backup Noturno Offload" required
+              class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Expressão Cron (Min Hora Dia Mês Sem)</label>
+            <input type="text" id="sched-cron" value="0 22 * * *" required
+              class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-amber-200 mb-1">Servidor Origem (Produção)</label>
+            <select id="sched-prod-host"
+              class="w-full rounded-lg bg-slate-950 border border-amber-500/30 px-3 py-2 text-xs text-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-teal-200 mb-1">Servidor Destino (Armazenamento / Teste)</label>
+            <select id="sched-test-host"
+              class="w-full rounded-lg bg-slate-950 border border-teal-500/30 px-3 py-2 text-xs text-white"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Compressão</label>
+            <select id="sched-compression"
+              class="w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white">
+              <option value="zstd">zstd -1 (.fbk.zst)</option>
+              <option value="gzip">gzip -1 (.fbk.gz)</option>
+              <option value="none">Nenhuma (.fbk)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-teal-200 mb-1">Local da Compressão</label>
+            <select id="sched-comp-location"
+              class="w-full rounded-lg bg-slate-950 border border-teal-500/30 px-3 py-2 text-xs text-white">
+              <option value="middle_stream">Máq. Aplicação (Streaming)</option>
+              <option value="middle_staged">Máq. Aplicação (2 Etapas)</option>
+              <option value="source">Na Origem (Produção)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Retenção (dias)</label>
+            <input type="number" id="sched-retention" value="7" min="0"
+              class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Webhook de Notificação (Opcional)</label>
+          <input type="url" id="sched-webhook" placeholder="https://hooks.slack.com/..."
+            class="w-full font-mono-code rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white" />
+        </div>
+
+        <div class="flex flex-col gap-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input type="checkbox" id="sched-nogc" checked class="rounded bg-slate-900 border-slate-700 text-teal-400" />
+            <span>Usar <code class="text-teal-300 font-mono-code">-g</code> (Inibir Garbage Collection na produção)</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input type="checkbox" id="sched-restore" checked class="rounded bg-slate-900 border-slate-700 text-teal-400" />
+            <span>Restaurar no servidor destino (<code class="text-teal-300 font-mono-code">gbak -c -rep</code>)</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input type="checkbox" id="sched-gfix" checked class="rounded bg-slate-900 border-slate-700 text-teal-400" />
+            <span>Validar integridade com <code class="text-teal-300 font-mono-code">gfix -v -full -n</code> após restore</span>
+          </label>
+        </div>
+
+        <div class="flex justify-end gap-2.5 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeScheduleModal()"
+            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold">Cancelar</button>
+          <button type="submit"
+            class="px-4 py-2 rounded-xl bg-[#00a896] hover:bg-teal-500 text-slate-950 text-xs font-bold">Salvar Agendamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: Add / Edit Host -->
   <div id="host-modal"

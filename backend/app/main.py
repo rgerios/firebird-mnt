@@ -66,3 +66,11 @@ def serve_index(request: Request):
     if not get_current_user_or_none(request):
         return RedirectResponse(url="/login", status_code=302)
     return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+
+@app.get("/help")
+@app.get("/help.html")
+def serve_help(request: Request):
+    if not get_current_user_or_none(request):
+        return RedirectResponse(url="/login", status_code=302)
+    return FileResponse(str(FRONTEND_DIR / "help.html"))

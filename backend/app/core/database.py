@@ -122,7 +122,9 @@ def init_db() -> None:
                 prod_host_id INTEGER NOT NULL,
                 test_host_id INTEGER NOT NULL,
                 compression TEXT NOT NULL DEFAULT 'zstd',
+                compression_location TEXT NOT NULL DEFAULT 'source',
                 no_gc INTEGER NOT NULL DEFAULT 1,
+                run_restore INTEGER NOT NULL DEFAULT 1,
                 run_gfix INTEGER NOT NULL DEFAULT 1,
                 retention_days INTEGER NOT NULL DEFAULT 7,
                 webhook_url TEXT DEFAULT '',
@@ -132,6 +134,13 @@ def init_db() -> None:
             )
             """
         )
+
+        cursor.execute("PRAGMA table_info(schedules)")
+        sched_cols = {row["name"] for row in cursor.fetchall()}
+        if "compression_location" not in sched_cols:
+            cursor.execute("ALTER TABLE schedules ADD COLUMN compression_location TEXT NOT NULL DEFAULT 'source'")
+        if "run_restore" not in sched_cols:
+            cursor.execute("ALTER TABLE schedules ADD COLUMN run_restore INTEGER NOT NULL DEFAULT 1")
 
         # Time-series telemetry history table for Temporal Charts (TV NOC Wallboard)
         cursor.execute(
@@ -324,7 +333,7 @@ def dict_from_row(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
     if row is None:
         return None
     d = dict(row)
-    for bool_col in ("is_simulated", "no_gc", "run_gfix", "enabled", "is_active"):
+    for bool_col in ("is_simulated", "no_gc", "run_restore", "run_gfix", "enabled", "is_active"):
         if bool_col in d:
             d[bool_col] = bool(d[bool_col])
     return d

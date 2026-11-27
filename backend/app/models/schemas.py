@@ -49,6 +49,10 @@ class BackupJobRequest(BaseModel):
     db_path: str = Field(..., description="Caminho do arquivo .fdb no servidor de produção")
     backup_dir: str = Field(default="/backups", description="Diretório de destino do backup")
     compression: Literal["zstd", "gzip", "none"] = Field(default="zstd")
+    compression_location: Literal["source", "middle_stream", "middle_staged"] = Field(
+        default="source",
+        description="Onde comprimir: 'source' (na produção), 'middle_stream' (streaming na aplicação) ou 'middle_staged' (2 etapas na aplicação)",
+    )
     no_gc: bool = Field(
         default=True,
         description="Flag -g: desativa garbage collection durante o backup para evitar impacto em produção",
@@ -91,8 +95,10 @@ class FullPipelineJobRequest(BaseModel):
     test_backup_dir: str = "/backups/recebidos"
     test_restore_db_path: str = "/dados_teste/venosan_valida.fdb"
     compression: Literal["zstd", "gzip", "none"] = "zstd"
+    compression_location: Literal["source", "middle_stream", "middle_staged"] = "source"
     no_gc: bool = True
     transfer_method: Literal["rsync", "scp"] = "rsync"
+    run_restore: bool = True
     run_gfix: bool = True
     cleanup_old_backups_days: Optional[int] = Field(
         default=7, description="Se informado, remove backups mais antigos que N dias após validação"
@@ -139,7 +145,9 @@ class ScheduleCreate(BaseModel):
     prod_host_id: int
     test_host_id: int
     compression: Literal["zstd", "gzip", "none"] = "zstd"
+    compression_location: Literal["source", "middle_stream", "middle_staged"] = "source"
     no_gc: bool = True
+    run_restore: bool = True
     run_gfix: bool = True
     retention_days: int = 7
     webhook_url: Optional[str] = ""

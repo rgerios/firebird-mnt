@@ -103,16 +103,22 @@ async def trigger_schedule_execution(schedule_id: int) -> Dict[str, Any]:
         test_backup_dir=test["default_backup_dir"],
         test_restore_db_path=test["default_db_path"],
         compression=sched.get("compression", "zstd"),
+        compression_location=sched.get("compression_location", "source"),
         no_gc=bool(sched.get("no_gc", True)),
         transfer_method="rsync",
+        run_restore=bool(sched.get("run_restore", True)),
         run_gfix=bool(sched.get("run_gfix", True)),
         cleanup_old_backups_days=sched.get("retention_days", 7),
         webhook_url=sched.get("webhook_url", ""),
     )
 
+    comp_loc = req.compression_location
+    loc_tag = " [Offload App]" if comp_loc != "source" else ""
+    restore_tag = f" -> gbak -c ({test['hostname']})" if req.run_restore else " (somente cópia)"
+    gfix_tag = " -> gfix" if (req.run_restore and req.run_gfix) else ""
     preview = (
-        f"[Agendado: {sched['name']}] gbak -b -g ({prod['hostname']}) -> "
-        f"rsync -> gbak -c -rep ({test['hostname']}) -> gfix -v -full -n"
+        f"[Agendado: {sched['name']}]{loc_tag} gbak -b -g ({prod['hostname']}) -> "
+        f"{req.compression} -> {test['hostname']}{restore_tag}{gfix_tag}"
     )
     exec_id = create_execution_record(
         job_type="full_pipeline",

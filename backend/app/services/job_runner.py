@@ -16,9 +16,12 @@ from app.models.schemas import (
     TransferJobRequest,
 )
 from app.services.ssh_service import (
+    STAGING_DIR,
     mask_sensitive,
+    offload_backup_stream_to_local,
     relay_transfer_between_hosts,
     run_ssh_command_stream,
+    upload_local_file_to_host,
 )
 from app.services.ws_manager import ws_manager
 
@@ -483,14 +486,27 @@ async def execute_backup_job(exec_id: int, req: BackupJobRequest) -> None:
         timestamp_tag=ts_tag,
     )
 
+    is_offload = req.compression_location != "source"
+    if is_offload:
+        out_file = str(STAGING_DIR / os.path.basename(out_file))
+
     host_label = host["name"]
+    loc_label = f" [Offload: {req.compression_location}]" if is_offload else ""
     await logger.log(
-        f"Iniciando Job 1 (Backup Quente Firebird) em {host_label} ({host['hostname']})...",
+        f"Iniciando Job 1 (Backup Quente Firebird{loc_label}) em {host_label} ({host['hostname']})...",
         level="info",
         host_name=host_label,
         step="BACKUP",
     )
-    await logger.log(f"$ {mask_sensitive(cmd)}", level="cmd", host_name=host_label, step="BACKUP")
+    if is_offload:
+        await logger.log(
+            f"[Offload App] gbak -b {'-g ' if req.no_gc else ''}stdout ({host['hostname']}) -> compressão {req.compression} na máquina da aplicação -> {out_file}",
+            level="cmd",
+            host_name="InfraMGNT",
+            step="BACKUP",
+        )
+    else:
+        await logger.log(f"$ {mask_sensitive(cmd)}", level="cmd", host_name=host_label, step="BACKUP")
 
     try:
         if host.get("is_simulated"):
@@ -504,6 +520,28 @@ async def execute_backup_job(exec_id: int, req: BackupJobRequest) -> None:
             )
             status = "success"
             summary = f"Backup gerado com sucesso: {out_file}"
+        elif is_offload:
+            async def _on_offload(line: str, lvl: str) -> None:
+                await logger.log(line, level=lvl, host_name="InfraMGNT", step="BACKUP")
+
+            exit_code, out_file = await offload_backup_stream_to_local(
+                source_host=host,
+                db_path=req.db_path,
+                local_out_file=out_file,
+                compression=req.compression,
+                mode=req.compression_location,
+                no_gc=req.no_gc,
+                verbose=req.verbose,
+                on_line=_on_offload,
+            )
+            if exit_code == 0:
+                status = "success"
+                summary = f"Backup offload concluído na máquina da aplicação: {out_file}"
+                await logger.log(summary, level="success", host_name="InfraMGNT", step="BACKUP")
+            else:
+                status = "error"
+                summary = f"Offload backup falhou com código {exit_code}."
+                await logger.log(summary, level="error", host_name="InfraMGNT", step="BACKUP")
         else:
             # Trava Pré-Backup: Verifica espaço livre em disco na partição de destino (> 10% livre)
             df_check_cmd = (
@@ -738,131 +776,204 @@ async def execute_full_pipeline_job(exec_id: int, req: FullPipelineJobRequest) -
         step="INIT",
     )
 
+    is_offload = req.compression_location != "source"
+    local_staging_file = str(STAGING_DIR / filename)
+
     try:
-        await logger.log(
-            "[ETAPA 1/4] Executando Backup Quente na Máquina de Produção...",
-            level="info",
-            host_name=prod_host["name"],
-            step="1/4 BACKUP",
-        )
-        await logger.log(
-            f"$ {mask_sensitive(backup_cmd)}",
-            level="cmd",
-            host_name=prod_host["name"],
-            step="1/4 BACKUP",
-        )
-
-        if prod_host.get("is_simulated"):
-            await _simulate_gbak_backup(
-                logger=logger,
-                host_name=prod_host["name"],
-                db_path=req.prod_db_path,
-                out_file=prod_backup_file,
-                no_gc=req.no_gc,
-                compression=req.compression,
-            )
-        else:
-            async def _on_bkp(line: str, lvl: str) -> None:
-                await logger.log(line, level=lvl, host_name=prod_host["name"], step="1/4 BACKUP")
-
-            code, _ = await run_ssh_command_stream(prod_host, backup_cmd, _on_bkp)
-            if code != 0:
-                raise RuntimeError(f"Etapa 1 (gbak backup) falhou com código {code}.")
-
-        await logger.log(
-            f"[ETAPA 2/4] Transferindo {prod_backup_file} para {test_host['name']} ({req.transfer_method.upper()})...",
-            level="info",
-            host_name=f"{prod_host['name']} -> {test_host['name']}",
-            step="2/4 TRANSFER",
-        )
-        if prod_host.get("is_simulated") or test_host.get("is_simulated"):
-            test_backup_file = await _simulate_transfer(
-                logger=logger,
-                src_host=prod_host,
-                dst_host=test_host,
-                source_file=prod_backup_file,
-                target_dir=req.test_backup_dir,
-                method=req.transfer_method,
-            )
-        else:
-            async def _on_xfer(line: str, lvl: str) -> None:
-                await logger.log(
-                    line,
-                    level=lvl,
-                    host_name=f"{prod_host['name']} -> {test_host['name']}",
-                    step="2/4 TRANSFER",
-                )
-
-            code, test_backup_file = await relay_transfer_between_hosts(
-                source_host=prod_host,
-                target_host=test_host,
-                source_file=prod_backup_file,
-                target_dir=req.test_backup_dir,
-                method=req.transfer_method,
-                on_line=_on_xfer,
-            )
-            if code != 0:
-                raise RuntimeError(f"Etapa 2 (Transferência) falhou com código {code}.")
-
-        await logger.log(
-            f"[ETAPA 3/4] Restaurando backup na máquina de validação ({test_host['name']})...",
-            level="info",
-            host_name=test_host["name"],
-            step="3/4 RESTORE",
-        )
-        await logger.log(
-            f"$ {mask_sensitive(restore_cmd)}",
-            level="cmd",
-            host_name=test_host["name"],
-            step="3/4 RESTORE",
-        )
-        if req.run_gfix:
+        if is_offload:
             await logger.log(
-                f"$ {mask_sensitive(gfix_cmd)}",
+                f"[ETAPA 1/4] Puxando stream gbak cru de {prod_host['name']} e comprimindo na Máquina da Aplicação ({req.compression_location})...",
+                level="info",
+                host_name="InfraMGNT",
+                step="1/4 OFFLOAD",
+            )
+            if prod_host.get("is_simulated"):
+                await _simulate_gbak_backup(
+                    logger=logger,
+                    host_name="InfraMGNT (Staging)",
+                    db_path=req.prod_db_path,
+                    out_file=local_staging_file,
+                    no_gc=req.no_gc,
+                    compression=req.compression,
+                )
+            else:
+                async def _on_offload(line: str, lvl: str) -> None:
+                    await logger.log(line, level=lvl, host_name="InfraMGNT", step="1/4 OFFLOAD")
+
+                code, local_staging_file = await offload_backup_stream_to_local(
+                    source_host=prod_host,
+                    db_path=req.prod_db_path,
+                    local_out_file=local_staging_file,
+                    compression=req.compression,
+                    mode=req.compression_location,
+                    no_gc=req.no_gc,
+                    verbose=True,
+                    on_line=_on_offload,
+                )
+                if code != 0:
+                    raise RuntimeError(f"Etapa 1 (Offload gbak + {req.compression}) falhou com código {code}.")
+
+            await logger.log(
+                f"[ETAPA 2/4] Enviando {filename} da Máquina da Aplicação para {test_host['name']} ({req.test_backup_dir})...",
+                level="info",
+                host_name=f"InfraMGNT -> {test_host['name']}",
+                step="2/4 UPLOAD",
+            )
+            if prod_host.get("is_simulated") or test_host.get("is_simulated"):
+                test_backup_file = await _simulate_transfer(
+                    logger=logger,
+                    src_host=prod_host,
+                    dst_host=test_host,
+                    source_file=local_staging_file,
+                    target_dir=req.test_backup_dir,
+                    method=req.transfer_method,
+                )
+            else:
+                async def _on_upload(line: str, lvl: str) -> None:
+                    await logger.log(
+                        line,
+                        level=lvl,
+                        host_name=f"InfraMGNT -> {test_host['name']}",
+                        step="2/4 UPLOAD",
+                    )
+
+                code, test_backup_file = await upload_local_file_to_host(
+                    local_file=local_staging_file,
+                    target_host=test_host,
+                    target_dir=req.test_backup_dir,
+                    on_line=_on_upload,
+                )
+                if code != 0:
+                    raise RuntimeError(f"Etapa 2 (Upload ao destino) falhou com código {code}.")
+        else:
+            await logger.log(
+                "[ETAPA 1/4] Executando Backup Quente na Máquina de Produção...",
+                level="info",
+                host_name=prod_host["name"],
+                step="1/4 BACKUP",
+            )
+            await logger.log(
+                f"$ {mask_sensitive(backup_cmd)}",
+                level="cmd",
+                host_name=prod_host["name"],
+                step="1/4 BACKUP",
+            )
+
+            if prod_host.get("is_simulated"):
+                await _simulate_gbak_backup(
+                    logger=logger,
+                    host_name=prod_host["name"],
+                    db_path=req.prod_db_path,
+                    out_file=prod_backup_file,
+                    no_gc=req.no_gc,
+                    compression=req.compression,
+                )
+            else:
+                async def _on_bkp(line: str, lvl: str) -> None:
+                    await logger.log(line, level=lvl, host_name=prod_host["name"], step="1/4 BACKUP")
+
+                code, _ = await run_ssh_command_stream(prod_host, backup_cmd, _on_bkp)
+                if code != 0:
+                    raise RuntimeError(f"Etapa 1 (gbak backup) falhou com código {code}.")
+
+            await logger.log(
+                f"[ETAPA 2/4] Transferindo {prod_backup_file} para {test_host['name']} ({req.transfer_method.upper()})...",
+                level="info",
+                host_name=f"{prod_host['name']} -> {test_host['name']}",
+                step="2/4 TRANSFER",
+            )
+            if prod_host.get("is_simulated") or test_host.get("is_simulated"):
+                test_backup_file = await _simulate_transfer(
+                    logger=logger,
+                    src_host=prod_host,
+                    dst_host=test_host,
+                    source_file=prod_backup_file,
+                    target_dir=req.test_backup_dir,
+                    method=req.transfer_method,
+                )
+            else:
+                async def _on_xfer(line: str, lvl: str) -> None:
+                    await logger.log(
+                        line,
+                        level=lvl,
+                        host_name=f"{prod_host['name']} -> {test_host['name']}",
+                        step="2/4 TRANSFER",
+                    )
+
+                code, test_backup_file = await relay_transfer_between_hosts(
+                    source_host=prod_host,
+                    target_host=test_host,
+                    source_file=prod_backup_file,
+                    target_dir=req.test_backup_dir,
+                    method=req.transfer_method,
+                    on_line=_on_xfer,
+                )
+                if code != 0:
+                    raise RuntimeError(f"Etapa 2 (Transferência) falhou com código {code}.")
+
+        if not req.run_restore:
+            status = "success"
+            summary = f"Backup comprimido e entregue no destino {test_host['name']}:{test_backup_file} (sem restore)."
+        else:
+            await logger.log(
+                f"[ETAPA 3/4] Restaurando backup na máquina de validação ({test_host['name']})...",
+                level="info",
+                host_name=test_host["name"],
+                step="3/4 RESTORE",
+            )
+            await logger.log(
+                f"$ {mask_sensitive(restore_cmd)}",
                 level="cmd",
                 host_name=test_host["name"],
-                step="4/4 GFIX",
+                step="3/4 RESTORE",
             )
-
-        if test_host.get("is_simulated"):
-            status, step_summary = await _simulate_restore_and_gfix(
-                logger=logger,
-                host_name=test_host["name"],
-                backup_file=test_backup_file,
-                restore_db_path=req.test_restore_db_path,
-                run_gfix=req.run_gfix,
-                simulate_corruption=False,
-            )
-            summary = f"Pipeline 1-Clique concluído! Backup: {filename} | {step_summary}"
-        else:
-            async def _on_rest(line: str, lvl: str) -> None:
-                await logger.log(line, level=lvl, host_name=test_host["name"], step="3/4 RESTORE")
-
-            r_code, _ = await run_ssh_command_stream(test_host, restore_cmd, _on_rest)
-            if r_code != 0:
-                raise RuntimeError(f"Etapa 3 (gbak restore) falhou com código {r_code}.")
-
             if req.run_gfix:
                 await logger.log(
-                    "[ETAPA 4/4] Validando integridade física da base restaurada (gfix -v -full -n)...",
-                    level="info",
+                    f"$ {mask_sensitive(gfix_cmd)}",
+                    level="cmd",
                     host_name=test_host["name"],
                     step="4/4 GFIX",
                 )
 
-                async def _on_gfix(line: str, lvl: str) -> None:
-                    await logger.log(line, level=lvl, host_name=test_host["name"], step="4/4 GFIX")
+            if test_host.get("is_simulated"):
+                status, step_summary = await _simulate_restore_and_gfix(
+                    logger=logger,
+                    host_name=test_host["name"],
+                    backup_file=test_backup_file,
+                    restore_db_path=req.test_restore_db_path,
+                    run_gfix=req.run_gfix,
+                    simulate_corruption=False,
+                )
+                summary = f"Pipeline 1-Clique concluído! Backup: {filename} | {step_summary}"
+            else:
+                async def _on_rest(line: str, lvl: str) -> None:
+                    await logger.log(line, level=lvl, host_name=test_host["name"], step="3/4 RESTORE")
 
-                g_code, g_out = await run_ssh_command_stream(test_host, gfix_cmd, _on_gfix)
-                if g_code != 0 or "errors" in g_out.lower():
-                    status = "warning"
-                    summary = f"Pipeline finalizado com alerta do gfix em {req.test_restore_db_path}."
+                r_code, _ = await run_ssh_command_stream(test_host, restore_cmd, _on_rest)
+                if r_code != 0:
+                    raise RuntimeError(f"Etapa 3 (gbak restore) falhou com código {r_code}.")
+
+                if req.run_gfix:
+                    await logger.log(
+                        "[ETAPA 4/4] Validando integridade física da base restaurada (gfix -v -full -n)...",
+                        level="info",
+                        host_name=test_host["name"],
+                        step="4/4 GFIX",
+                    )
+
+                    async def _on_gfix(line: str, lvl: str) -> None:
+                        await logger.log(line, level=lvl, host_name=test_host["name"], step="4/4 GFIX")
+
+                    g_code, g_out = await run_ssh_command_stream(test_host, gfix_cmd, _on_gfix)
+                    if g_code != 0 or "errors" in g_out.lower():
+                        status = "warning"
+                        summary = f"Pipeline finalizado com alerta do gfix em {req.test_restore_db_path}."
+                    else:
+                        status = "success"
+                        summary = f"Pipeline Completo homologado! Base {req.test_restore_db_path} íntegra (0 erros)."
                 else:
                     status = "success"
-                    summary = f"Pipeline Completo homologado! Base {req.test_restore_db_path} íntegra (0 erros)."
-            else:
-                status = "success"
-                summary = f"Pipeline Completo finalizado! Base restaurada em {req.test_restore_db_path}."
+                    summary = f"Pipeline Completo finalizado! Base restaurada em {req.test_restore_db_path}."
 
         await logger.log(
             f"[CONCLUÍDO] {summary}",
@@ -874,21 +985,23 @@ async def execute_full_pipeline_job(exec_id: int, req: FullPipelineJobRequest) -
         # Optional Retention Cleanup step
         if req.cleanup_old_backups_days and req.cleanup_old_backups_days > 0:
             days = int(req.cleanup_old_backups_days)
+            retention_host = test_host if is_offload else prod_host
+            retention_dir = req.test_backup_dir if is_offload else req.prod_backup_dir
             cleanup_cmd = (
-                f"find '{req.prod_backup_dir}' -maxdepth 1 -type f "
+                f"find '{retention_dir}' -maxdepth 1 -type f "
                 f"\\( -name '*.fbk' -o -name '*.fbk.zst' -o -name '*.fbk.gz' \\) "
                 f"-mtime +{days} -delete"
             )
             await logger.log(
                 f"[RETENÇÃO] Limpando backups com mais de {days} dias: $ {cleanup_cmd}",
                 level="info",
-                host_name=prod_host["name"],
+                host_name=retention_host["name"],
                 step="RETENTION",
             )
-            if not prod_host.get("is_simulated"):
+            if not retention_host.get("is_simulated"):
                 async def _on_clean(line: str, lvl: str) -> None:
-                    await logger.log(line, level=lvl, host_name=prod_host["name"], step="RETENTION")
-                await run_ssh_command_stream(prod_host, cleanup_cmd, _on_clean)
+                    await logger.log(line, level=lvl, host_name=retention_host["name"], step="RETENTION")
+                await run_ssh_command_stream(retention_host, cleanup_cmd, _on_clean)
 
         # Optional Webhook Notification step
         if req.webhook_url and req.webhook_url.strip():
@@ -920,6 +1033,12 @@ async def execute_full_pipeline_job(exec_id: int, req: FullPipelineJobRequest) -
         status = "error"
         summary = f"Falha no Pipeline Completo: {exc}"
         await logger.log(summary, level="error", host_name="Pipeline", step="ERROR")
+    finally:
+        if is_offload and os.path.exists(local_staging_file):
+            try:
+                os.remove(local_staging_file)
+            except OSError:
+                pass
 
     duration = time.perf_counter() - t0
     finalize_execution_record(
@@ -927,7 +1046,7 @@ async def execute_full_pipeline_job(exec_id: int, req: FullPipelineJobRequest) -
         status,
         duration,
         summary,
-        artifact_file=prod_backup_file if status != "error" else "",
+        artifact_file=(test_backup_file if is_offload else prod_backup_file) if status != "error" else "",
     )
     await ws_manager.emit_status(
         exec_id,

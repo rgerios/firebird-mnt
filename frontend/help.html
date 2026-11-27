@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia de Funcionalidades &amp; Arquitetura — Firebird Command Center (Venosan)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="min-h-screen antialiased selection:bg-[#00a896] selection:text-white">
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl">
+    <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="bg-white/95 px-3 py-1.5 rounded-xl shadow-md border border-white/30 flex items-center">
+          <img src="/assets/venosan-logo.png" alt="Venosan • Lohmann & Rauscher" class="h-8 w-auto object-contain" />
+        </div>
+        <img src="/assets/firebird-logo.png" alt="Firebird" class="w-9 h-9 object-contain" />
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold text-white">Guia de Funcionalidades, Prós &amp; Contras</h1>
+          <p class="text-xs text-slate-300/80">Documentação técnica para apoiar a decisão do analista de infraestrutura</p>
+        </div>
+      </div>
+
+      <a href="/"
+        class="px-4 py-2 rounded-xl bg-[#00a896] hover:bg-teal-500 text-slate-950 text-xs font-bold shadow-lg shadow-teal-500/20 transition">
+        &larr; Voltar ao Painel Principal
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+    <!-- 1. Decisão Principal: Onde Comprimir -->
+    <section class="pastel-panel rounded-2xl p-6 space-y-5">
+      <div>
+        <span class="text-[11px] font-mono-code uppercase px-2.5 py-0.5 rounded-full bg-teal-400/15 text-teal-200 border border-teal-400/30 font-bold">
+          Decisão Arquitetural
+        </span>
+        <h2 class="text-xl font-extrabold text-white mt-2">1. Local da Compressão do Backup (Produção vs. Máquina do Meio)</h2>
+        <p class="text-xs sm:text-sm text-slate-300 mt-1">
+          O <code class="text-amber-300 font-mono-code">gbak -b -g</code> lê a base Firebird e gera um fluxo sequencial (<code class="font-mono-code">stdout</code>). Você pode escolher onde a compressão (<code class="font-mono-code">zstd</code> / <code class="font-mono-code">gzip</code>) acontece:
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- Origem -->
+        <div class="rounded-2xl bg-slate-950/80 border border-amber-500/30 p-5 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-bold text-amber-200">Na Origem (Produção)</h3>
+              <span class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-amber-500/20 text-amber-200">source</span>
+            </div>
+            <p class="text-xs text-slate-300">Executa <code class="font-mono-code">gbak ... stdout | zstd -1 -T0</code> diretamente no servidor de produção e só depois transfere o arquivo comprimido.</p>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-emerald-300 mb-1">Pontos Positivos</p>
+              <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li>Menor tráfego de rede (envia apenas ~25–45 GB comprimidos).</li>
+                <li>Não consome CPU nem disco de staging na máquina da aplicação.</li>
+              </ul>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-rose-300 mb-1">Pontos Negativos</p>
+              <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li><strong>Gargalo de CPU na produção:</strong> <code class="font-mono-code">zstd -T0</code> usa todos os núcleos, podendo gerar lentidão no ERP.</li>
+                <li>Exige espaço em disco local na produção para armazenar o backup.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-400">
+            <strong>Quando escolher:</strong> Janelas de madrugada com CPU ociosa na produção ou link de rede lento.
+          </div>
+        </div>
+
+        <!-- Middle Stream -->
+        <div class="rounded-2xl bg-slate-950/90 border-2 border-[#00a896]/60 p-5 flex flex-col justify-between space-y-4 shadow-lg shadow-teal-500/10">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-bold text-teal-200">Máq. Aplicação (Streaming)</h3>
+              <span class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-[#00a896]/25 text-teal-100 font-bold">RECOMENDADO</span>
+            </div>
+            <p class="text-xs text-slate-300">Produção roda apenas <code class="font-mono-code">gbak -b -g ... stdout</code>. A aplicação recebe o stream pela rede, comprime em tempo real na máquina do meio e envia ao destino final.</p>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-emerald-300 mb-1">Pontos Positivos</p>
+              <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li><strong>Zero CPU de compressão na produção</strong> (protege o banco ativo).</li>
+                <li><strong>Não grava `.fbk` cru em disco</strong> (economia de IOPS e metade do espaço de manobra).</li>
+                <li>Limpeza automática do staging após envio ao destino.</li>
+              </ul>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-rose-300 mb-1">Pontos Negativos</p>
+              <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li>Trafega o fluxo cru (~90–130 GB em base de 150 GB) pela LAN até a máquina da aplicação.</li>
+                <li>Exige CPU adequada na máquina da aplicação para acompanhar o fluxo.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 text-[11px] text-teal-200/90">
+            <strong>Quando escolher:</strong> Produção com gargalo de CPU e rede LAN 1 Gbps ou 10 Gbps até o InfraMGNT.
+          </div>
+        </div>
+
+        <!-- Middle Staged -->
+        <div class="rounded-2xl bg-slate-950/80 border border-sky-400/30 p-5 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-bold text-sky-200">Máq. Aplicação (2 Etapas)</h3>
+              <span class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-sky-500/20 text-sky-200">middle_staged</span>
+            </div>
+            <p class="text-xs text-slate-300">Puxa o <code class="font-mono-code">.fbk</code> cru inteiro para o disco da máquina da aplicação, depois comprime localmente, apaga o cru e envia ao destino.</p>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-emerald-300 mb-1">Pontos Positivos</p>
+              <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li>Zero CPU de compressão na produção.</li>
+                <li>Desacopla o tempo do <code class="font-mono-code">gbak</code> na produção do tempo de compressão (libera o Firebird mais rápido se a CPU do meio for modesta).</li>
+              </ul>
+            </div>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-rose-300 mb-1">Pontos Negativos</p>
+              <ul class="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li>Exige o <strong>dobro/triplo de disco</strong> na máquina do meio (cru + comprimido simultâneos).</li>
+                <li>Maior desgaste de I/O de disco na máquina da aplicação.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-400">
+            <strong>Quando escolher:</strong> Máquina do meio com bastante SSD/NVMe livre e CPU limitada.
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela de Dimensionamento 150GB -->
+      <div class="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+        <h3 class="text-sm font-bold text-white mb-3">Dimensionamento Recomendado na Máquina do Meio (Base Produção ~150 GB)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
+                <th class="py-2 px-3">Modo</th>
+                <th class="py-2 px-3">.fbk Cru Estimado</th>
+                <th class="py-2 px-3">.fbk.zst Estimado</th>
+                <th class="py-2 px-3">Área de Manobra (Disco Livre)</th>
+                <th class="py-2 px-3">CPU / RAM Recomendada</th>
+                <th class="py-2 px-3">Rede LAN</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/70 text-slate-200">
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-teal-200">Streaming Direto (middle_stream)</td>
+                <td class="py-2.5 px-3">Não grava em disco</td>
+                <td class="py-2.5 px-3">25 GB – 45 GB</td>
+                <td class="py-2.5 px-3 font-bold text-teal-300">100 GB livres (mín. seguro)</td>
+                <td class="py-2.5 px-3">4 – 8 vCPUs / 4 – 8 GB RAM</td>
+                <td class="py-2.5 px-3">1 Gbps (~16–20 min) ou 10 Gbps</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-semibold text-sky-200">2 Etapas / Staging (middle_staged)</td>
+                <td class="py-2.5 px-3">90 GB – 130 GB (até 150 GB)</td>
+                <td class="py-2.5 px-3">25 GB – 45 GB</td>
+                <td class="py-2.5 px-3 font-bold text-amber-300">250 GB – 300 GB livres</td>
+                <td class="py-2.5 px-3">4 – 8 vCPUs / 4 – 8 GB RAM</td>
+                <td class="py-2.5 px-3">1 Gbps (~16–20 min) ou 10 Gbps</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Algoritmos de Compressão & Transporte -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="pastel-panel rounded-2xl p-6 space-y-4">
+        <h2 class="text-lg font-bold text-white">2. Algoritmos de Compressão</h2>
+        <div class="space-y-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+            <div class="flex justify-between font-bold text-teal-200"><span>zstd -1 (.fbk.zst)</span><span>Padrão Recomendado</span></div>
+            <p class="text-slate-300 mt-1"><strong>Prós:</strong> Multi-thread (<code class="font-mono-code">-T0</code>), 3x a 5x mais rápido que gzip com taxa de compressão igual ou superior (~70% de redução).</p>
+            <p class="text-slate-400 mt-0.5"><strong>Contras:</strong> Por usar todos os núcleos, deve rodar preferencialmente na máquina do meio (offload).</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+            <div class="flex justify-between font-bold text-slate-200"><span>gzip -1 (.fbk.gz)</span><span>Compatibilidade</span></div>
+            <p class="text-slate-300 mt-1"><strong>Prós:</strong> Universal em qualquer Linux antigo; usa apenas 1 núcleo de CPU (impacto limitado).</p>
+            <p class="text-slate-400 mt-0.5"><strong>Contras:</strong> Bem mais lento que o <code class="font-mono-code">zstd</code> em bases grandes (150 GB).</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+            <div class="flex justify-between font-bold text-amber-200"><span>Sem compressão (.fbk puro)</span><span>Velocidade de Restore</span></div>
+            <p class="text-slate-300 mt-1"><strong>Prós:</strong> Zero gasto de CPU na geração e restauração imediata.</p>
+            <p class="text-slate-400 mt-0.5"><strong>Contras:</strong> Consome 3x a 4x mais espaço em disco e tráfego até o destino final.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pastel-panel rounded-2xl p-6 space-y-4">
+        <h2 class="text-lg font-bold text-white">3. Transporte &amp; Validação Pós-Backup</h2>
+        <div class="space-y-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+            <div class="font-bold text-teal-200">Flag <code class="font-mono-code">-g</code> (Inibir Garbage Collection)</div>
+            <p class="text-slate-300 mt-1"><strong>Prós:</strong> Impede o <code class="font-mono-code">gbak</code> de limpar versões antigas de registros durante o backup, evitando I/O pesado e lentidão em produção.</p>
+            <p class="text-slate-400 mt-0.5"><strong>Contras:</strong> A limpeza de lixo deve ser feita separadamente (via <code class="font-mono-code">gfix -sweep</code> em horário controlado).</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+            <div class="font-bold text-sky-200">Restore (<code class="font-mono-code">gbak -c -rep</code>) + <code class="font-mono-code">gfix -v -full -n</code> vs. Somente Cópia</div>
+            <p class="text-slate-300 mt-1"><strong>Com Restore + gfix:</strong> Garante 100% que o backup é restaurável e sem corrupção física. Ideal para servidor de homologação/validação.</p>
+            <p class="text-slate-400 mt-0.5"><strong>Somente Cópia (desmarcar Restore):</strong> Apenas armazena o <code class="font-mono-code">.fbk.zst</code> no servidor de destino (ex.: NAS/Storage), economizando tempo e disco no destino.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-950/75 border border-slate-800">
+            <div class="font-bold text-amber-200">Rsync / SCP vs. SFTP Relay</div>
+            <p class="text-slate-300 mt-1"><strong>Prós:</strong> Quando há chave SSH direta entre origem e destino, usa <code class="font-mono-code">rsync</code>; se não houver, ou no modo Offload, o InfraMGNT faz o envio direto via SFTP seguro com barra de progresso.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Demais Funcionalidades do Sistema -->
+    <section class="pastel-panel rounded-2xl p-6 space-y-4">
+      <h2 class="text-lg font-bold text-white">4. Todas as Funcionalidades do Painel</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+        <div class="p-4 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+          <h3 class="font-bold text-amber-200">Agendamentos 24/7 (Background)</h3>
+          <p class="text-slate-300">Executa pipelines por expressão Cron mesmo sem nenhum operador logado. Suporta retenção automática, webhook (Slack/Teams/Discord) e Offload.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+          <h3 class="font-bold text-teal-200">Telemetria Temporal &amp; TV NOC</h3>
+          <p class="text-slate-300">Coleta a cada 60s RSS do Firebird, CPU, Conexões (porta 3050), I/O e Transaction Gap (Next - OAT). Modo leitura <code class="font-mono-code">firebird-ro</code> ideal para TV de monitoramento.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+          <h3 class="font-bold text-sky-200">Relatório Diário 24h (HTML)</h3>
+          <p class="text-slate-300">Compara snapshots das tabelas a cada 24h e gera relatório HTML com crescimento líquido, registros adicionados/removidos e versão exata do Firebird.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+          <h3 class="font-bold text-violet-200">Manutenção Preventiva</h3>
+          <p class="text-slate-300">Diagnóstico online (<code class="font-mono-code">gstat -h</code>), recálculo de seletividade de índices, tuning Linux (<code class="font-mono-code">swappiness=10</code>, <code class="font-mono-code">fstrim</code>), sweep e rebuild completo.</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+          <h3 class="font-bold text-emerald-200">Laboratório Offline (.fdb / .fbk)</h3>
+          <p class="text-slate-300">Analisa cópias offline sem tocar na produção, identifica índices com depth &ge; 4, lixo acumulado e gera plano de otimização (Page Size 16KB).</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-950/75 border border-slate-800 space-y-1.5">
+          <h3 class="font-bold text-rose-200">Travas de Segurança</h3>
+          <p class="text-slate-300">Bloqueia <code class="font-mono-code">gbak -c</code> (restore) em servidores marcados como Produção e aborta backup local se a partição estiver &ge; 90% cheia.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</body>
+
+</html>

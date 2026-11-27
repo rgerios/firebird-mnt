@@ -3,12 +3,17 @@ import os
 import random
 import re
 import socket
+import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
 
 import paramiko
+
+STAGING_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "staging"
+STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def mask_sensitive(cmd: str) -> str:
@@ -649,3 +654,196 @@ def _classify_line_level(line: str) -> str:
     if any(k in lower for k in ["success", "concluído", "finishing", "closing, and going home"]):
         return "success"
     return "info"
+
+
+async def offload_backup_stream_to_local(
+    source_host: Dict[str, Any],
+    db_path: str,
+    local_out_file: str,
+    compression: str,
+    mode: str,
+    no_gc: bool,
+    verbose: bool,
+    on_line: LogCallback,
+) -> Tuple[int, str]:
+    """
+    Executes `gbak -b ... stdout` on `source_host` (zero compression CPU on production)
+    and compresses on the InfraMGNT application machine:
+      - mode == 'middle_stream': pipes SSH stdout directly into local zstd/gzip without writing raw .fbk to disk.
+      - mode == 'middle_staged': writes raw .fbk to local staging, compresses locally, then removes raw .fbk.
+    """
+    fb_user = source_host.get("fb_user") or "SYSDBA"
+    fb_pass = source_host.get("fb_password") or "masterkey"
+    flags = ["-b"]
+    if no_gc:
+        flags.append("-g")
+    if verbose:
+        flags.append("-v")
+    flag_str = " ".join(flags)
+    gbak_cmd = f"gbak {flag_str} -user {fb_user} -password \"{fb_pass}\" '{db_path}' stdout"
+
+    out_path = Path(local_out_file)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_path = out_path.with_suffix(".raw.fbk")
+    loop = asyncio.get_running_loop()
+
+    def _emit(msg: str, lvl: str = "info") -> None:
+        asyncio.run_coroutine_threadsafe(on_line(msg, lvl), loop).result()
+
+    def _run_offload() -> int:
+        client = _build_paramiko_client(source_host, timeout=20.0)
+        proc = None
+        out_fp = None
+        try:
+            _, stdout, stderr = client.exec_command(gbak_cmd)
+            stderr_errors: List[str] = []
+
+            def _read_stderr() -> None:
+                for raw_line in iter(stderr.readline, ""):
+                    line = raw_line.rstrip("\r\n")
+                    if line:
+                        stderr_errors.append(line)
+                        _emit(line, _classify_line_level(line))
+
+            err_thread = threading.Thread(target=_read_stderr, daemon=True)
+            err_thread.start()
+
+            if mode == "middle_stream" and compression in ("zstd", "gzip"):
+                if compression == "zstd":
+                    proc = subprocess.Popen(
+                        ["zstd", "-1", "-T0", "-f", "-o", str(out_path)],
+                        stdin=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    sink = proc.stdin
+                else:
+                    out_fp = open(out_path, "wb")
+                    proc = subprocess.Popen(
+                        ["gzip", "-1", "-c"],
+                        stdin=subprocess.PIPE,
+                        stdout=out_fp,
+                        stderr=subprocess.PIPE,
+                    )
+                    sink = proc.stdin
+            else:
+                target_write_path = raw_path if (mode == "middle_staged" and compression in ("zstd", "gzip")) else out_path
+                out_fp = open(target_write_path, "wb")
+                sink = out_fp
+
+            total_bytes = 0
+            last_mb_log = 0
+            while True:
+                chunk = stdout.read(256 * 1024)
+                if not chunk:
+                    break
+                sink.write(chunk)
+                total_bytes += len(chunk)
+                mb = total_bytes / (1024 * 1024)
+                if mb - last_mb_log >= 256:
+                    last_mb_log = int(mb)
+                    _emit(f"[Offload Stream] Recebidos {mb:.1f} MB de gbak stdout...", "info")
+
+            if proc is not None and proc.stdin is not None:
+                proc.stdin.close()
+            if out_fp is not None:
+                out_fp.flush()
+                out_fp.close()
+                out_fp = None
+
+            ssh_exit = stdout.channel.recv_exit_status()
+            err_thread.join(timeout=5.0)
+
+            if proc is not None:
+                proc_rc = proc.wait()
+                if proc_rc != 0:
+                    err_txt = (proc.stderr.read().decode("utf-8", errors="replace") if proc.stderr else "").strip()
+                    _emit(f"Falha na compressão local ({compression}): {err_txt}", "error")
+                    return proc_rc
+
+            if ssh_exit != 0:
+                return ssh_exit
+
+            if mode == "middle_staged" and compression in ("zstd", "gzip"):
+                raw_mb = raw_path.stat().st_size / (1024 * 1024) if raw_path.exists() else 0
+                _emit(
+                    f"[Offload 2-Etapas] .fbk cru salvo ({raw_mb:.2f} MB). Comprimindo localmente com {compression}...",
+                    "info",
+                )
+                if compression == "zstd":
+                    comp_res = subprocess.run(
+                        ["zstd", "-1", "-T0", "-f", "-o", str(out_path), str(raw_path)],
+                        capture_output=True,
+                        text=True,
+                    )
+                else:
+                    with open(out_path, "wb") as gz_out:
+                        comp_res = subprocess.run(
+                            ["gzip", "-1", "-c", str(raw_path)],
+                            stdout=gz_out,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                        )
+                if raw_path.exists():
+                    raw_path.unlink(missing_ok=True)
+                if comp_res.returncode != 0:
+                    _emit(f"Falha na compressão local ({compression}): {comp_res.stderr}", "error")
+                    return comp_res.returncode
+
+            final_mb = out_path.stat().st_size / (1024 * 1024) if out_path.exists() else 0
+            _emit(f"[Offload] Arquivo pronto na máquina da aplicação: {out_path.name} ({final_mb:.2f} MB)", "success")
+            return 0
+        finally:
+            if out_fp is not None:
+                out_fp.close()
+            if raw_path.exists():
+                raw_path.unlink(missing_ok=True)
+            client.close()
+
+    code = await asyncio.to_thread(_run_offload)
+    return code, str(out_path)
+
+
+async def upload_local_file_to_host(
+    local_file: str,
+    target_host: Dict[str, Any],
+    target_dir: str,
+    on_line: LogCallback,
+) -> Tuple[int, str]:
+    """
+    Uploads a local staging file from the InfraMGNT machine to `target_host` via SFTP.
+    """
+    src_path = Path(local_file)
+    remote_target_path = f"{target_dir.rstrip('/')}/{src_path.name}"
+    loop = asyncio.get_running_loop()
+
+    mkdir_code, _ = await run_ssh_command_stream(target_host, f"mkdir -p '{target_dir}'", on_line)
+    if mkdir_code != 0:
+        return mkdir_code, remote_target_path
+
+    def _sftp_upload() -> int:
+        client = _build_paramiko_client(target_host, timeout=20.0)
+        try:
+            sftp = client.open_sftp()
+            total_bytes = src_path.stat().st_size or 1
+            sent = 0
+            last_pct = -20
+            with open(src_path, "rb") as rf, sftp.open(remote_target_path, "wb") as wf:
+                while True:
+                    chunk = rf.read(256 * 1024)
+                    if not chunk:
+                        break
+                    wf.write(chunk)
+                    sent += len(chunk)
+                    pct = int((sent / total_bytes) * 100)
+                    if pct >= last_pct + 20 or sent == total_bytes:
+                        last_pct = pct
+                        mb_done = sent / (1024 * 1024)
+                        mb_tot = total_bytes / (1024 * 1024)
+                        msg = f"[SFTP Upload] {src_path.name} -> {target_host['hostname']}: {pct}% ({mb_done:.2f} MB / {mb_tot:.2f} MB)"
+                        asyncio.run_coroutine_threadsafe(on_line(msg, "info"), loop).result()
+            return 0
+        finally:
+            client.close()
+
+    code = await asyncio.to_thread(_sftp_upload)
+    return code, remote_target_path

@@ -222,7 +222,7 @@ async function deleteUserAccount(userId) {
 }
 
 async function refreshAllData() {
-  await Promise.all([loadStats(), loadHosts(), loadExecutions(), loadDailyReports()]);
+  await Promise.all([loadStats(), loadHosts(), loadExecutions(), loadDailyReports(), loadSchedules()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +405,8 @@ function populateHostDropdowns() {
   setHtml("rest-host", buildOpts(defaultTestId));
   setHtml("maint-host", buildOpts(prevMaintId));
   setHtml("telemetry-host-select", buildOpts(currentTelemetryHostId));
+  setHtml("sched-prod-host", buildOpts(defaultProdId));
+  setHtml("sched-test-host", buildOpts(defaultTestId));
 
   const offlineHostEl = document.getElementById("offline-host-select");
   if (offlineHostEl) {
@@ -1341,6 +1343,7 @@ function updateBackupPreview() {
   const dbPath = document.getElementById("bkp-db-path")?.value || "/dados/producao.fdb";
   const bkpDir = (document.getElementById("bkp-dir")?.value || "/backups").replace(/\/$/, "");
   const comp = document.getElementById("bkp-comp")?.value || "zstd";
+  const compLoc = document.getElementById("bkp-comp-location")?.value || "source";
   const noGc = document.getElementById("bkp-nogc")?.checked;
   const verbose = document.getElementById("bkp-verbose")?.checked;
 
@@ -1349,12 +1352,18 @@ function updateBackupPreview() {
   if (verbose) flags.push("-v");
 
   const ext = comp === "zstd" ? ".fbk.zst" : comp === "gzip" ? ".fbk.gz" : ".fbk";
-  const pipe =
-    comp === "zstd"
-      ? `stdout | zstd -1 -T0 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
-      : comp === "gzip"
-        ? `stdout | gzip -1 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
-        : `${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`;
+  let pipe = "";
+  if (compLoc !== "source") {
+    const modeLabel = compLoc === "middle_stream" ? "Streaming" : "2-Etapas";
+    pipe = `stdout  -->  [Offload ${modeLabel} na Máq. Aplicação: ${comp} -> data/staging/base_${ext}]`;
+  } else {
+    pipe =
+      comp === "zstd"
+        ? `stdout | zstd -1 -T0 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
+        : comp === "gzip"
+          ? `stdout | gzip -1 > ${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`
+          : `${bkpDir}/base_$(date +%Y%m%d_%H%M)${ext}`;
+  }
 
   const previewEl = document.getElementById("bkp-cmd-preview");
   if (previewEl) {
@@ -1369,6 +1378,7 @@ async function submitBackupJob(event) {
     db_path: document.getElementById("bkp-db-path").value.trim(),
     backup_dir: document.getElementById("bkp-dir").value.trim(),
     compression: document.getElementById("bkp-comp").value,
+    compression_location: document.getElementById("bkp-comp-location")?.value || "source",
     no_gc: document.getElementById("bkp-nogc").checked,
     verbose: document.getElementById("bkp-verbose").checked,
   };
@@ -1411,11 +1421,139 @@ async function submitFullPipeline(event) {
     test_backup_dir: document.getElementById("pipe-test-bkp-dir").value.trim(),
     test_restore_db_path: document.getElementById("pipe-test-db").value.trim(),
     compression: document.getElementById("pipe-compression").value,
+    compression_location: document.getElementById("pipe-comp-location")?.value || "source",
     no_gc: document.getElementById("pipe-nogc").checked,
     transfer_method: document.getElementById("pipe-transfer").value,
+    run_restore: document.getElementById("pipe-restore") ? document.getElementById("pipe-restore").checked : true,
     run_gfix: document.getElementById("pipe-gfix").checked,
   };
   await triggerJobEndpoint("/api/jobs/full-pipeline", payload);
+}
+
+// ---------------------------------------------------------------------------
+// 3.5 Agendamentos Automáticos (24/7)
+// ---------------------------------------------------------------------------
+
+async function loadSchedules() {
+  const tbody = document.getElementById("schedules-tbody");
+  if (!tbody) return;
+  try {
+    const res = await fetch("/api/schedules");
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-500">Nenhum agendamento cadastrado.</td></tr>`;
+      return;
+    }
+
+    const hostName = (id) => {
+      const h = hostsState.find((x) => x.id === id);
+      return h ? escapeHtml(h.name) : `#${id}`;
+    };
+
+    const locBadge = (loc) => {
+      if (loc === "middle_stream") {
+        return `<span class="px-2 py-0.5 rounded bg-teal-400/15 text-teal-200 border border-teal-400/30 text-[10px] font-semibold">Offload Streaming</span>`;
+      }
+      if (loc === "middle_staged") {
+        return `<span class="px-2 py-0.5 rounded bg-sky-400/15 text-sky-200 border border-sky-400/30 text-[10px] font-semibold">Offload 2-Etapas</span>`;
+      }
+      return `<span class="px-2 py-0.5 rounded bg-amber-400/15 text-amber-200 border border-amber-400/30 text-[10px] font-semibold">Na Origem</span>`;
+    };
+
+    tbody.innerHTML = rows
+      .map((s) => {
+        const statusBadge = s.enabled
+          ? `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">ATIVO</span>`
+          : `<span class="px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 text-[10px] font-bold">PAUSADO</span>`;
+        const lastRun = s.last_run_at ? new Date(s.last_run_at).toLocaleString("pt-BR") : "Nunca";
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-3 px-4 font-semibold text-white">${escapeHtml(s.name)}</td>
+            <td class="py-3 px-4 font-mono-code text-teal-200">${escapeHtml(s.cron_expr)}</td>
+            <td class="py-3 px-4 text-slate-300">${hostName(s.prod_host_id)} &rarr; ${hostName(s.test_host_id)}</td>
+            <td class="py-3 px-4 space-x-1">
+              <span class="font-mono-code text-slate-200">${escapeHtml(s.compression)}</span>
+              ${locBadge(s.compression_location || "source")}
+            </td>
+            <td class="py-3 px-4 text-[11px] text-slate-300">
+              ${s.no_gc ? "-g" : "GC"} | ${s.run_restore !== false ? "Restore" : "Só Cópia"}${s.run_gfix && s.run_restore !== false ? "+gfix" : ""} | ${s.retention_days}d
+            </td>
+            <td class="py-3 px-4 text-slate-400">${escapeHtml(lastRun)}</td>
+            <td class="py-3 px-4">${statusBadge}</td>
+            <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+              <button onclick="runScheduleNow(${s.id})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 text-[11px] font-semibold">Executar</button>
+              <button onclick="toggleSchedule(${s.id})" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]">${s.enabled ? "Pausar" : "Ativar"}</button>
+              <button onclick="deleteSchedule(${s.id})" class="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 text-[11px]">Excluir</button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  } catch (err) {
+    console.error("Erro ao carregar agendamentos:", err);
+  }
+}
+
+function openScheduleModal() {
+  document.getElementById("schedule-form")?.reset();
+  document.getElementById("schedule-modal")?.classList.remove("hidden");
+}
+
+function closeScheduleModal() {
+  document.getElementById("schedule-modal")?.classList.add("hidden");
+}
+
+async function saveSchedule(event) {
+  event.preventDefault();
+  const payload = {
+    name: document.getElementById("sched-name").value.trim(),
+    cron_expr: document.getElementById("sched-cron").value.trim(),
+    prod_host_id: Number(document.getElementById("sched-prod-host").value),
+    test_host_id: Number(document.getElementById("sched-test-host").value),
+    compression: document.getElementById("sched-compression").value,
+    compression_location: document.getElementById("sched-comp-location").value,
+    no_gc: document.getElementById("sched-nogc").checked,
+    run_restore: document.getElementById("sched-restore").checked,
+    run_gfix: document.getElementById("sched-gfix").checked,
+    retention_days: Number(document.getElementById("sched-retention").value) || 0,
+    webhook_url: document.getElementById("sched-webhook").value.trim(),
+    enabled: true,
+  };
+  const res = await fetch("/api/schedules", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (res.ok) {
+    closeScheduleModal();
+    await loadSchedules();
+  } else {
+    const err = await res.json();
+    alert(`Erro ao salvar agendamento: ${err.detail || "Verifique os dados"}`);
+  }
+}
+
+async function toggleSchedule(id) {
+  await fetch(`/api/schedules/${id}/toggle`, { method: "POST" });
+  await loadSchedules();
+}
+
+async function runScheduleNow(id) {
+  const res = await fetch(`/api/schedules/${id}/run`, { method: "POST" });
+  if (res.ok) {
+    const data = await res.json();
+    appendLocalConsoleLine(`Agendamento #${id} disparado manualmente (Execução #${data.execution_id}).`, "info");
+    await loadSchedules();
+  } else {
+    alert("Falha ao executar agendamento.");
+  }
+}
+
+async function deleteSchedule(id) {
+  if (!confirm("Remover este agendamento?")) return;
+  await fetch(`/api/schedules/${id}`, { method: "DELETE" });
+  await loadSchedules();
 }
 
 async function quickTriggerFullPipeline() {

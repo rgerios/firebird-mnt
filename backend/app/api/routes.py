@@ -1043,9 +1043,9 @@ def create_schedule(payload: ScheduleCreate) -> Dict[str, Any]:
             """
             INSERT INTO schedules (
                 name, cron_expr, prod_host_id, test_host_id,
-                compression, no_gc, run_gfix, retention_days,
-                webhook_url, enabled, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                compression, compression_location, no_gc, run_restore, run_gfix,
+                retention_days, webhook_url, enabled, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.name,
@@ -1053,7 +1053,9 @@ def create_schedule(payload: ScheduleCreate) -> Dict[str, Any]:
                 payload.prod_host_id,
                 payload.test_host_id,
                 payload.compression,
+                payload.compression_location,
                 1 if payload.no_gc else 0,
+                1 if payload.run_restore else 0,
                 1 if payload.run_gfix else 0,
                 payload.retention_days,
                 payload.webhook_url or "",
